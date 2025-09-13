@@ -1,0 +1,36 @@
+<template>
+  <AppLayout>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h2>Daftar Stok</h2>
+      <Link href="/stock/adjust" class="btn btn-primary">+ Penyesuaian Stok</Link>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-bordered table-striped no-wrap">
+        <thead class="table-dark">
+          <tr>
+            <th>#</th>
+            <th>Produk</th>
+            <th>Jumlah</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(s, i) in stocks" :key="s.id">
+            <td>{{ i + 1 }}</td>
+            <td>{{ s.product.name }}</td>
+            <td>{{ s.quantity }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </AppLayout>
+</template>
+
+<script setup>
+import { Link } from '@inertiajs/vue3'
+import AppLayout from '@/Layouts/AppLayout.vue'
+
+const props = defineProps({
+  stocks: Array
+})
+</script>
