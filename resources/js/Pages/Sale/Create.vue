@@ -79,25 +79,29 @@ import AppLayout from '@/Layouts/AppLayout.vue'
 
 const props = defineProps({ products: Array })
 
+// Form data
 const form = useForm({
   items: [{ product_id: '', quantity: 1, discount: 0 }],
   paid: 0,
+  subtotal: 0,
+  discount: 0,
+  total: 0,
 })
 
 // Tambah/hapus item
 const addItem = () => form.items.push({ product_id: '', quantity: 1, discount: 0 })
 const removeItem = (index) => form.items.splice(index, 1)
 
-// Subtotal tiap item
+// Hitung subtotal tiap item
 const itemSubtotal = (item) => {
   const product = props.products.find(p => p.id === item.product_id)
   if (!product) return 0
-  return product.price * item.quantity * (1 - (item.discount || 0) / 100)
+  return product.price * item.quantity * (1 - (item.discount || 0)/100)
 }
 
 // Total transaksi
 const totalTransaction = computed(() =>
-  form.items.reduce((total, item) => total + itemSubtotal(item), 0)
+  form.items.reduce((sum, item) => sum + itemSubtotal(item), 0)
 )
 
 // Kembalian
@@ -105,27 +109,34 @@ const change = computed(() => Math.max(form.paid - totalTransaction.value, 0))
 
 // Submit form
 const submit = () => {
-  // Siapkan items lengkap dengan price dan subtotal masing-masing
-  form.items = form.items.map(item => {
+  // Siapkan payload items lengkap
+  const payloadItems = form.items.map(item => {
     const product = props.products.find(p => p.id === item.product_id)
-    if (!product) return item
-    const price = product.price
-    const subtotal = price * item.quantity * (1 - (item.discount || 0)/100)
     return {
-      ...item,
-      price,
-      subtotal,
+      product_id: item.product_id,
+      quantity: item.quantity,
+      discount: item.discount,
+      price: product ? product.price : 0,
+      subtotal: product ? product.price * item.quantity * (1 - (item.discount || 0)/100) : 0,
     }
   })
 
-  // Hitung total transaksi
-  form.subtotal = form.items.reduce((sum, item) => sum + (item.price * item.quantity), 0)
-  form.discount = form.items.reduce((sum, item) => sum + (item.price * item.quantity * (item.discount || 0)/100), 0)
-  form.total = form.subtotal - form.discount
-  form.change = Math.max(form.paid - form.total, 0)
+  // Hitung total
+  const subtotal = payloadItems.reduce((sum, i) => sum + i.price * i.quantity, 0)
+  const discount = payloadItems.reduce((sum, i) => sum + i.price * i.quantity * (i.discount || 0)/100, 0)
+  const total = subtotal - discount
+  const change = Math.max(form.paid - total, 0)
 
   // Kirim form
   form.post('/sales', {
+    data: {
+      items: payloadItems,
+      subtotal,
+      discount,
+      total,
+      paid: form.paid,
+      change
+    },
     onSuccess: () => {
       alert('Transaksi berhasil disimpan!')
       form.reset()
