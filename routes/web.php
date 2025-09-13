@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Route;
 
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\StockController;
+use App\Http\Controllers\ReportController;
 
 use Inertia\Inertia;
 
@@ -24,6 +25,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/stock/adjust', [StockController::class, 'adjustForm'])->name('stock.adjust.form');
     Route::post('/stock/adjust', [StockController::class, 'adjust'])->name('stock.adjust');
     Route::get('/stock', [StockController::class, 'index'])->name('stock.index');
+    Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
 });
     
 
