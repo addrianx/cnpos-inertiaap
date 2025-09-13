@@ -8,13 +8,9 @@
         type="button"
         data-bs-toggle="collapse"
         data-bs-target="#navbarNav"
-        aria-controls="navbarNav"
-        aria-expanded="false"
-        aria-label="Toggle navigation"
       >
         <span class="navbar-toggler-icon"></span>
       </button>
-
 
       <div class="collapse navbar-collapse" id="navbarNav">
         <ul class="navbar-nav me-auto">
@@ -34,11 +30,38 @@
             <Link class="nav-link" href="/reports">Laporan</Link>
           </li>
         </ul>
+
+        <!-- Sign Out -->
+        <ul class="navbar-nav ms-auto">
+          <li class="nav-item">
+            <button class="btn btn-outline-light" @click="confirmLogout">
+              Sign Out
+            </button>
+          </li>
+        </ul>
       </div>
     </div>
   </nav>
 </template>
 
 <script setup>
-import { Link } from '@inertiajs/vue3'
+import { Link, router } from '@inertiajs/vue3'
+import Swal from 'sweetalert2'
+
+const confirmLogout = () => {
+  Swal.fire({
+    title: 'Konfirmasi Logout',
+    text: 'Apakah Anda yakin ingin keluar?',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#d33',
+    cancelButtonColor: '#6c757d',
+    confirmButtonText: 'Ya, logout!',
+    cancelButtonText: 'Batal',
+  }).then((result) => {
+    if (result.isConfirmed) {
+      router.post('/logout')
+    }
+  })
+}
 </script>

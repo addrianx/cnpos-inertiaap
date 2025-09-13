@@ -12,6 +12,8 @@
             <th>#</th>
             <th>Produk</th>
             <th>Jumlah</th>
+            <th>Catatan</th>
+            <th>Keterangan</th>
           </tr>
         </thead>
         <tbody>
@@ -19,6 +21,8 @@
             <td>{{ i + 1 }}</td>
             <td>{{ s.product.name }}</td>
             <td>{{ s.quantity }}</td>
+            <td>{{ s.note }}</td>
+            <td>{{ s.type }}</td>
           </tr>
         </tbody>
       </table>

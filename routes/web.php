@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\StockController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\SaleController;
+
 
 use Inertia\Inertia;
 
@@ -26,8 +28,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/stock/adjust', [StockController::class, 'adjust'])->name('stock.adjust');
     Route::get('/stock', [StockController::class, 'index'])->name('stock.index');
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
+    Route::get('/sales', [SaleController::class, 'index'])->name('sales.index');
+    Route::get('/sales/create', [SaleController::class, 'create'])->name('sales.create');
+    Route::post('/sales', [SaleController::class, 'store'])->name('sales.store');
 });
     
+
+
+
 
 Route::middleware('auth')->group(function () {
 
