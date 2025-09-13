@@ -11,7 +11,10 @@ class StockController extends Controller
 {
     public function index()
     {
-        $stocks = Stock::with('product')->get();
+        // Tampilkan semua log stok, join dengan product
+        $stocks = Stock::with('product')
+            ->latest()
+            ->get();
 
         return Inertia::render('Stock/Index', [
             'stocks' => $stocks
@@ -32,22 +35,21 @@ class StockController extends Controller
         $request->validate([
             'product_id' => 'required|exists:products,id',
             'quantity'   => 'required|integer',
+            'type'       => 'required|in:in,out,adjustment',
+            'reference'  => 'nullable|string',
+            'note'       => 'nullable|string',
         ]);
 
-        $stock = Stock::where('product_id', $request->product_id)->first();
-
-        if ($stock) {
-            $stock->update([
-                'quantity' => $stock->quantity + $request->quantity
-            ]);
-        } else {
-            Stock::create([
-                'product_id' => $request->product_id,
-                'quantity'   => $request->quantity
-            ]);
-        }
+        // Simpan log stok baru, tidak menimpa stok lama
+        Stock::create([
+            'product_id' => $request->product_id,
+            'type'       => $request->type,
+            'quantity'   => $request->quantity,
+            'reference'  => $request->reference,
+            'note'       => $request->note,
+        ]);
 
         return redirect()->route('stock.index')
-            ->with('success', 'Stok berhasil disesuaikan');
+            ->with('success', 'Stok berhasil ditambahkan');
     }
 }
