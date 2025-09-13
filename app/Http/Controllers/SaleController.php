@@ -28,7 +28,7 @@ class SaleController extends Controller
             'items.*.price'      => 'required|numeric',
             'items.*.subtotal'   => 'required|numeric',
             'subtotal' => 'required|numeric',
-            'discount' => 'required|numeric',
+            'discount' => 'numeric',
             'total'    => 'required|numeric',
             'paid'     => 'required|numeric',
         ]);

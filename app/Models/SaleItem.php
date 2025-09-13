@@ -4,6 +4,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class SaleItem extends Model
 {
+    use HasFactory;
     protected $fillable = ['sale_id', 'product_id', 'quantity', 'price', 'subtotal'];
 
     public function product()

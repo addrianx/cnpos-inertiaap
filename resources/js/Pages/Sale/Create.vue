@@ -3,6 +3,7 @@
     <h2>Buat Transaksi Penjualan (Mode Kasir)</h2>
 
     <form @submit.prevent="submit" class="mt-3">
+      <!-- Daftar Item -->
       <div v-for="(item, index) in form.items" :key="index" class="card mb-3 p-3">
         <div class="row align-items-end">
           <!-- Produk -->
@@ -20,13 +21,13 @@
             <input v-model.number="item.quantity" type="number" class="form-control" min="1" />
           </div>
 
-          <!-- Diskon (%) -->
+          <!-- Diskon -->
           <div class="col-md-2 mb-2">
             <label class="form-label">Diskon (%)</label>
             <input v-model.number="item.discount" type="number" class="form-control" min="0" max="100" />
           </div>
 
-          <!-- Harga Subtotal per Item -->
+          <!-- Subtotal -->
           <div class="col-md-2 mb-2">
             <label class="form-label">Subtotal</label>
             <div class="form-control bg-light">
@@ -43,7 +44,7 @@
 
       <button type="button" class="btn btn-primary mb-3" @click="addItem">+ Tambah Item</button>
 
-      <!-- Total Transaksi -->
+      <!-- Total -->
       <div class="mb-3">
         <label class="form-label">Total Transaksi</label>
         <div class="form-control bg-light">
@@ -63,7 +64,9 @@
         </div>
       </div>
 
-      <button type="submit" class="btn btn-success">Simpan</button>
+      <button type="submit" class="btn btn-success" :disabled="form.processing">
+        {{ form.processing ? 'Menyimpan...' : 'Simpan' }}
+      </button>
       <Link href="/sales" class="btn btn-secondary ms-2">Batal</Link>
     </form>
   </AppLayout>
@@ -74,18 +77,10 @@ import { useForm, Link } from '@inertiajs/vue3'
 import { computed } from 'vue'
 import AppLayout from '@/Layouts/AppLayout.vue'
 
-const props = defineProps({
-  products: Array,
-})
+const props = defineProps({ products: Array })
 
 const form = useForm({
-  items: [
-    {
-      product_id: '',
-      quantity: 1,
-      discount: 0,
-    },
-  ],
+  items: [{ product_id: '', quantity: 1, discount: 0 }],
   paid: 0,
 })
 
@@ -97,8 +92,7 @@ const removeItem = (index) => form.items.splice(index, 1)
 const itemSubtotal = (item) => {
   const product = props.products.find(p => p.id === item.product_id)
   if (!product) return 0
-  const subtotal = product.price * item.quantity
-  return subtotal - (item.discount / 100) * subtotal
+  return product.price * item.quantity * (1 - (item.discount || 0) / 100)
 }
 
 // Total transaksi
@@ -109,27 +103,38 @@ const totalTransaction = computed(() =>
 // Kembalian
 const change = computed(() => Math.max(form.paid - totalTransaction.value, 0))
 
+// Submit form
 const submit = () => {
-  // Hitung subtotal, discount, total dan tambahkan ke form
-  form.subtotal = form.items.reduce((sum, item) => {
+  // Siapkan items lengkap dengan price dan subtotal masing-masing
+  form.items = form.items.map(item => {
     const product = props.products.find(p => p.id === item.product_id)
-    if (!product) return sum
-    return sum + product.price * item.quantity
-  }, 0)
+    if (!product) return item
+    const price = product.price
+    const subtotal = price * item.quantity * (1 - (item.discount || 0)/100)
+    return {
+      ...item,
+      price,
+      subtotal,
+    }
+  })
 
-  form.discount = form.items.reduce((sum, item) => {
-    const product = props.products.find(p => p.id === item.product_id)
-    if (!product) return sum
-    return sum + (product.price * item.quantity * (item.discount || 0) / 100)
-  }, 0)
-
+  // Hitung total transaksi
+  form.subtotal = form.items.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+  form.discount = form.items.reduce((sum, item) => sum + (item.price * item.quantity * (item.discount || 0)/100), 0)
   form.total = form.subtotal - form.discount
-
-  // Kembalian
   form.change = Math.max(form.paid - form.total, 0)
 
-  // Kirim langsung form
-  form.post('/sales')
+  // Kirim form
+  form.post('/sales', {
+    onSuccess: () => {
+      alert('Transaksi berhasil disimpan!')
+      form.reset()
+    },
+    onError: (errors) => {
+      console.error(errors)
+      alert('Terjadi kesalahan, periksa input Anda.')
+    }
+  })
 }
 
 </script>

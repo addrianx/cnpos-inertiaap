@@ -5,11 +5,6 @@
       <Link href="/sales/create" class="btn btn-primary">+ Tambah Penjualan</Link>
     </div>
 
-        <!-- Alert flash -->
-    <div v-if="flash.success" class="alert alert-success">
-      {{ flash.success }}
-    </div>
-
     <div v-if="sales.length === 0" class="alert alert-info">
       Belum ada penjualan.
     </div>
