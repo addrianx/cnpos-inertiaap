@@ -15,6 +15,7 @@ class Product extends Model
         'cost',
         'price',
         'discount',
+        'store_id',
     ];
 
     public function stocks()

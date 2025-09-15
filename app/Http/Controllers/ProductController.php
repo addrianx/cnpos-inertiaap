@@ -11,7 +11,10 @@ class ProductController extends Controller
     // 📌 Tampilkan daftar produk
     public function index()
     {
-        $products = Product::with('stocks')->get();
+        $products = Product::with('stocks')
+            ->whereHas('store', function ($query) {
+                $query->where('user_id', auth()->id());
+            })->get();
 
         return Inertia::render('Products/Index', [
             'products' => $products,
@@ -35,17 +38,23 @@ class ProductController extends Controller
             'discount' => 'nullable|numeric|min:0|max:100',
         ]);
 
+        // 🔥 cari store milik user login
+        $store = auth()->user()->store; // kalau relasinya hasOne
+        // atau auth()->user()->stores()->first(); // kalau hasMany
+
         Product::create([
             'sku'      => $request->sku,
             'name'     => $request->name,
             'cost'     => $request->cost,
             'price'    => $request->price,
             'discount' => $request->discount ?? 0,
+            'store_id' => $store->id, // pastikan terhubung ke toko user
         ]);
 
         return redirect()->route('products.index')
             ->with('success', 'Produk berhasil ditambahkan');
     }
+
 
 
     // 📌 Form edit produk
@@ -67,12 +76,15 @@ class ProductController extends Controller
             'discount' => 'nullable|numeric|min:0|max:100',
         ]);
 
+        $store = auth()->user()->store;
+
         $product->update([
             'sku'      => $request->sku,
             'name'     => $request->name,
             'cost'     => $request->cost,
             'price'    => $request->price,
             'discount' => $request->discount ?? 0,
+            'store_id' => $store->id,
         ]);
 
         return redirect()->route('products.index')
