@@ -27,6 +27,9 @@
             <Link class="nav-link" href="/sales">Penjualan</Link>
           </li>
           <li class="nav-item">
+            <Link class="nav-link" href="/stores">Toko</Link>
+          </li>
+          <li class="nav-item">
             <Link class="nav-link" href="/reports">Laporan</Link>
           </li>
         </ul>

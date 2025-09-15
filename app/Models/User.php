@@ -45,4 +45,11 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+    public function store()
+    {
+        return $this->hasOne(Store::class); 
+        // kalau mau 1 user = 1 toko
+        // pakai hasMany kalau 1 user bisa punya banyak toko
+    }
 }

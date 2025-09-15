@@ -8,6 +8,8 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\StockController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SaleController;
+use App\Http\Controllers\StoreController;
+use App\Http\Controllers\UserController;
 
 
 use Inertia\Inertia;
@@ -31,6 +33,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/sales', [SaleController::class, 'index'])->name('sales.index');
     Route::get('/sales/create', [SaleController::class, 'create'])->name('sales.create');
     Route::post('/sales', [SaleController::class, 'store'])->name('sales.store');
+    Route::resource('/stores', StoreController::class);
+    Route::post('/users', [UserController::class, 'store'])->name('users.store');
+
 });
     
 

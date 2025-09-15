@@ -17,7 +17,15 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(s, i) in stocks" :key="s.id">
+          <!-- Jika kosong -->
+          <tr v-if="!stocks || stocks.length === 0">
+            <td colspan="5" class="text-center text-muted py-4">
+              Tidak ada stok.
+            </td>
+          </tr>
+
+          <!-- Jika ada data -->
+          <tr v-else v-for="(s, i) in stocks" :key="s.id">
             <td>{{ i + 1 }}</td>
             <td>{{ s.product.name }}</td>
             <td>{{ s.quantity }}</td>

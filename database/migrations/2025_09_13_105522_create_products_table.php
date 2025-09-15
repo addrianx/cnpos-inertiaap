@@ -18,6 +18,7 @@ return new class extends Migration
             $table->decimal('price', 12, 2); // harga jual default
             $table->decimal('cost', 12, 2);  // modal per item
             $table->decimal('discount', 5, 2)->default(0); // diskon default (%)
+            $table->foreignId('store_id')->constrained()->onDelete('cascade');
             $table->timestamps();
         });
     }

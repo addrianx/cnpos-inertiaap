@@ -20,7 +20,13 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="product in products" :key="product.id">
+          <tr v-if="!products || products.length === 0">
+            <td colspan="7" class="text-center text-muted py-4">
+              Tidak ada produk.
+            </td>
+          </tr>
+
+          <tr v-else v-for="product in products" :key="product.id">
             <td>{{ product.sku }}</td>
             <td>{{ product.name }}</td>
             <td>Rp {{ Number(product.cost).toLocaleString() }}</td>
@@ -42,8 +48,9 @@
               <Link
                 :href="`/products/${product.id}/edit`"
                 class="btn btn-sm btn-warning me-2"
-                >Edit</Link
               >
+                Edit
+              </Link>
               <button
                 class="btn btn-sm btn-danger"
                 @click="confirmDelete(product.id)"

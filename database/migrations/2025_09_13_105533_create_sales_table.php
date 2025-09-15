@@ -19,6 +19,7 @@ return new class extends Migration
             $table->decimal('total', 12, 2);       // setelah diskon
             $table->decimal('paid', 12, 2);
             $table->decimal('change', 12, 2)->default(0);
+            $table->foreignId('store_id')->constrained()->onDelete('cascade');
             $table->timestamps();
         });
     }
