@@ -5,6 +5,7 @@ class Sale extends Model
 {
     protected $fillable = [
         'user_id',
+        'store_id',   // ✅ tambahkan
         'subtotal',
         'discount',
         'total',

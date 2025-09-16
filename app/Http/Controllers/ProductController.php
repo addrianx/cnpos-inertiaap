@@ -95,6 +95,10 @@ class ProductController extends Controller
     // 📌 Hapus produk
     public function destroy(Product $product)
     {
+        if ($product->store->user_id !== auth()->id()) {
+            abort(403, 'Unauthorized');
+        }
+
         $product->delete();
 
         return redirect()->route('products.index')->with('success', 'Produk berhasil dihapus');

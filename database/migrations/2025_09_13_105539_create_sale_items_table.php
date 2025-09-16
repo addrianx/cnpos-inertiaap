@@ -17,7 +17,6 @@ return new class extends Migration
             $table->foreignId('product_id')->constrained()->onDelete('cascade');
             $table->integer('quantity');
             $table->decimal('price', 12, 2);       // harga jual per item
-            $table->decimal('cost', 12, 2);        // modal per item
             $table->decimal('discount', 12, 2)->default(0); // diskon nominal per item
             $table->decimal('subtotal', 12, 2);    // (qty * price) - discount
             $table->timestamps();

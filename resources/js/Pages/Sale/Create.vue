@@ -31,7 +31,7 @@
           <div class="col-md-2 mb-2">
             <label class="form-label">Subtotal</label>
             <div class="form-control bg-light">
-              Rp {{ itemSubtotal(item).toLocaleString() }}
+              Rp {{ itemsWithDetails[index].subtotal.toLocaleString() }}
             </div>
           </div>
 
@@ -65,7 +65,7 @@
       </div>
 
       <button type="submit" class="btn btn-success" :disabled="form.processing">
-        {{ form.processing ? 'Menyimpan...' : 'Simpan' }}
+        {{ form.processing ? "Menyimpan..." : "Simpan" }}
       </button>
       <Link href="/sales" class="btn btn-secondary ms-2">Batal</Link>
     </form>
@@ -73,79 +73,72 @@
 </template>
 
 <script setup>
-import { useForm, Link } from '@inertiajs/vue3'
-import { computed } from 'vue'
-import AppLayout from '@/Layouts/AppLayout.vue'
+import { useForm, Link } from "@inertiajs/vue3";
+import { computed } from "vue";
+import AppLayout from "@/Layouts/AppLayout.vue";
+import Swal from "sweetalert2";
 
-const props = defineProps({ products: Array })
+const props = defineProps({ products: Array });
 
 // Form data
 const form = useForm({
-  items: [{ product_id: '', quantity: 1, discount: 0 }],
+  items: [{ product_id: "", quantity: 1, discount: 0 }],
   paid: 0,
-  subtotal: 0,
-  discount: 0,
-  total: 0,
-})
+});
 
 // Tambah/hapus item
-const addItem = () => form.items.push({ product_id: '', quantity: 1, discount: 0 })
-const removeItem = (index) => form.items.splice(index, 1)
+const addItem = () => form.items.push({ product_id: "", quantity: 1, discount: 0 });
+const removeItem = (index) => form.items.splice(index, 1);
 
-// Hitung subtotal tiap item
-const itemSubtotal = (item) => {
-  const product = props.products.find(p => p.id === item.product_id)
-  if (!product) return 0
-  return product.price * item.quantity * (1 - (item.discount || 0)/100)
-}
+// Items dengan detail harga, diskon, subtotal
+const itemsWithDetails = computed(() =>
+  form.items.map((item) => {
+    const product = props.products.find((p) => p.id === item.product_id);
+    const price = product ? product.price : 0;
+    const discountAmount = price * item.quantity * (item.discount || 0) / 100;
+    const subtotal = price * item.quantity - discountAmount;
 
-// Total transaksi
-const totalTransaction = computed(() =>
-  form.items.reduce((sum, item) => sum + itemSubtotal(item), 0)
-)
+    return { ...item, price, discountAmount, subtotal };
+  })
+);
+
+// Hitung subtotal, diskon total, dan total akhir
+const subtotal = computed(() => itemsWithDetails.value.reduce((sum, i) => sum + i.price * i.quantity, 0));
+const totalDiscount = computed(() => itemsWithDetails.value.reduce((sum, i) => sum + i.discountAmount, 0));
+const totalTransaction = computed(() => subtotal.value - totalDiscount.value);
 
 // Kembalian
-const change = computed(() => Math.max(form.paid - totalTransaction.value, 0))
+const change = computed(() => Math.max(form.paid - totalTransaction.value, 0));
 
 // Submit form
 const submit = () => {
-  // Siapkan payload items lengkap
-  const payloadItems = form.items.map(item => {
-    const product = props.products.find(p => p.id === item.product_id)
-    return {
-      product_id: item.product_id,
-      quantity: item.quantity,
-      discount: item.discount,
-      price: product ? product.price : 0,
-      subtotal: product ? product.price * item.quantity * (1 - (item.discount || 0)/100) : 0,
-    }
-  })
-
-  // Hitung total
-  const subtotal = payloadItems.reduce((sum, i) => sum + i.price * i.quantity, 0)
-  const discount = payloadItems.reduce((sum, i) => sum + i.price * i.quantity * (i.discount || 0)/100, 0)
-  const total = subtotal - discount
-  const change = Math.max(form.paid - total, 0)
-
-  // Kirim form
-  form.post('/sales', {
+  form.post("/sales", {
     data: {
-      items: payloadItems,
-      subtotal,
-      discount,
-      total,
+      items: itemsWithDetails.value,
+      subtotal: subtotal.value,
+      discount: totalDiscount.value,
+      total: totalTransaction.value,
       paid: form.paid,
-      change
+      change: change.value,
     },
     onSuccess: () => {
-      alert('Transaksi berhasil disimpan!')
-      form.reset()
+      Swal.fire({
+        icon: "success",
+        title: "Berhasil!",
+        text: "Transaksi berhasil disimpan.",
+        confirmButtonColor: "#3085d6",
+      });
+      form.reset();
     },
     onError: (errors) => {
-      console.error(errors)
-      alert('Terjadi kesalahan, periksa input Anda.')
-    }
-  })
-}
-
+      console.error(errors);
+      Swal.fire({
+        icon: "error",
+        title: "Oops...",
+        text: "Terjadi kesalahan, periksa input Anda.",
+        confirmButtonColor: "#d33",
+      });
+    },
+  });
+};
 </script>

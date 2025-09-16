@@ -11,8 +11,11 @@ class StockController extends Controller
 {
     public function index()
     {
-        // Tampilkan semua log stok, join dengan product
+        // Ambil semua stok hanya untuk produk milik store user login
         $stocks = Stock::with('product')
+            ->whereHas('product.store', function ($q) {
+                $q->where('user_id', auth()->id());
+            })
             ->latest()
             ->get();
 
@@ -23,7 +26,10 @@ class StockController extends Controller
 
     public function adjustForm()
     {
-        $products = Product::all();
+        // Produk hanya yang punya store_id sesuai user login
+        $products = Product::whereHas('store', function ($q) {
+            $q->where('user_id', auth()->id());
+        })->get();
 
         return Inertia::render('Stock/Adjust', [
             'products' => $products
@@ -40,9 +46,16 @@ class StockController extends Controller
             'note'       => 'nullable|string',
         ]);
 
-        // Simpan log stok baru, tidak menimpa stok lama
+        // 🔒 Pastikan produk milik store user login
+        $product = Product::where('id', $request->product_id)
+            ->whereHas('store', function ($q) {
+                $q->where('user_id', auth()->id());
+            })
+            ->firstOrFail();
+
+        // Simpan log stok
         Stock::create([
-            'product_id' => $request->product_id,
+            'product_id' => $product->id,
             'type'       => $request->type,
             'quantity'   => $request->quantity,
             'reference'  => $request->reference,
