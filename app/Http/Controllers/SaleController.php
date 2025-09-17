@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 use Illuminate\Support\Facades\DB;
 use App\Models\Product;
 use App\Models\Sale;
-use App\Models\SaleItem;
 use App\Models\Store;
 use App\Models\Stock;
 use Illuminate\Http\Request;
@@ -12,10 +11,11 @@ use Inertia\Inertia;
 
 class SaleController extends Controller
 {
-    // Tampilkan halaman buat penjualan
+    /**
+     * Halaman buat penjualan baru
+     */
     public function create()
     {
-        // Ambil hanya produk milik store user yang login
         $store = Store::where('user_id', auth()->id())->firstOrFail();
 
         $products = Product::where('store_id', $store->id)->get();
@@ -25,16 +25,18 @@ class SaleController extends Controller
         ]);
     }
 
-    // Simpan transaksi penjualan
+    /**
+     * Simpan transaksi penjualan
+     */
     public function store(Request $request)
     {
         $request->validate([
-            'items'    => 'required|array|min:1',
-            'items.*.product_id' => 'required|exists:products,id',
-            'items.*.quantity'   => 'required|integer|min:1',
-            'items.*.discount'   => 'nullable|numeric',
-            'discount'           => 'nullable|numeric',
-            'paid'               => 'required|numeric',
+            'items'                => 'required|array|min:1',
+            'items.*.product_id'   => 'required|exists:products,id',
+            'items.*.quantity'     => 'required|integer|min:1',
+            'items.*.discount'     => 'nullable|numeric',
+            'discount'             => 'nullable|numeric',
+            'paid'                 => 'required|numeric',
         ]);
 
         $store = Store::where('user_id', auth()->id())->firstOrFail();
@@ -43,6 +45,7 @@ class SaleController extends Controller
         try {
             $subtotal = 0;
 
+            // Hitung subtotal transaksi
             foreach ($request->items as $item) {
                 $product = Product::where('id', $item['product_id'])
                     ->where('store_id', $store->id)
@@ -54,8 +57,9 @@ class SaleController extends Controller
             }
 
             $discount = $request->discount ?? 0;
-            $total = max($subtotal - $discount, 0);
+            $total    = max($subtotal - $discount, 0);
 
+            // Buat transaksi (sale_code otomatis digenerate di model)
             $sale = Sale::create([
                 'user_id'  => auth()->id(),
                 'store_id' => $store->id,
@@ -66,16 +70,16 @@ class SaleController extends Controller
                 'change'   => max($request->paid - $total, 0),
             ]);
 
+            // Simpan item penjualan + stok keluar
             foreach ($request->items as $item) {
                 $product = Product::where('id', $item['product_id'])
                     ->where('store_id', $store->id)
                     ->firstOrFail();
 
-                $price = $product->price;
+                $price        = $product->price;
                 $lineSubtotal = ($price * $item['quantity']) - ($item['discount'] ?? 0);
 
-                // Simpan item penjualan
-                $saleItem = $sale->items()->create([
+                $sale->items()->create([
                     'product_id' => $product->id,
                     'quantity'   => $item['quantity'],
                     'price'      => $price,
@@ -83,27 +87,33 @@ class SaleController extends Controller
                     'subtotal'   => $lineSubtotal,
                 ]);
 
-                // 🔹 Simpan pergerakan stok (OUT)
+                // Catat pergerakan stok dengan sale_code
                 Stock::create([
                     'product_id' => $product->id,
                     'type'       => 'out',
                     'quantity'   => $item['quantity'],
-                    'reference'  => 'SALE-' . $sale->id,
-                    'note'       => 'Penjualan #' . $sale->id,
+                    'reference'  => $sale->sale_code,         // ✅ pakai kode penjualan
+                    'note'       => 'Penjualan ' . $sale->sale_code, // ✅ pakai kode penjualan
                 ]);
             }
 
             DB::commit();
 
-            return redirect()->route('sales.index')->with('success', 'Transaksi berhasil disimpan');
+            return redirect()
+                ->route('sales.index')
+                ->with('success', 'Transaksi ' . $sale->sale_code . ' berhasil disimpan');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->withErrors(['msg' => 'Gagal menyimpan transaksi: ' . $e->getMessage()]);
+            return back()->withErrors([
+                'msg' => 'Gagal menyimpan transaksi: ' . $e->getMessage()
+            ]);
         }
     }
 
-    // Daftar semua transaksi hanya untuk store user login
+    /**
+     * Daftar semua transaksi milik store user login
+     */
     public function index()
     {
         $store = Store::where('user_id', auth()->id())->firstOrFail();
@@ -118,3 +128,4 @@ class SaleController extends Controller
         ]);
     }
 }
+

@@ -22,7 +22,7 @@
         <input
           type="text"
           v-model="search"
-          placeholder="Cari pelanggan / produk..."
+          placeholder="Kode produk..."
           class="form-control"
           style="width: 250px"
         />
@@ -41,7 +41,7 @@
           <tr>
             <th>ID</th>
             <th>Tanggal</th>
-            <th>Pelanggan</th>
+            <th>Kode Invoice</th>
             <th>Items</th>
             <th>Total</th>
           </tr>
@@ -50,7 +50,7 @@
           <tr v-for="sale in paginatedSales" :key="sale.id">
             <td>{{ sale.id }}</td>
             <td>{{ new Date(sale.created_at).toLocaleString() }}</td>
-            <td>{{ sale.customer_name ?? '-' }}</td>
+            <td>{{ sale.sale_code }}</td>
             <td>
               <ul class="mb-0">
                 <li v-for="item in sale.items" :key="item.id">
@@ -105,13 +105,9 @@ const search = ref('')
 const filteredSales = computed(() => {
   if (!search.value) return props.sales
   return props.sales.filter(sale => {
-    const customerMatch = sale.customer_name
-      ? sale.customer_name.toLowerCase().includes(search.value.toLowerCase())
+    return sale.sale_code
+      ? sale.sale_code.toLowerCase().includes(search.value.toLowerCase())
       : false
-    const productMatch = sale.items.some(item =>
-      item.product.name.toLowerCase().includes(search.value.toLowerCase())
-    )
-    return customerMatch || productMatch
   })
 })
 
