@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('sales', function (Blueprint $table) {
             $table->id();
-            $table->string('sale_code', 20)->unique()->after('id');
+            $table->string('sale_code', 20)->unique();
             $table->foreignId('user_id')->constrained()->onDelete('cascade'); // kasir
             $table->decimal('subtotal', 12, 2);    // sebelum diskon
             $table->decimal('discount', 12, 2)->default(0); // diskon transaksi (nominal)
