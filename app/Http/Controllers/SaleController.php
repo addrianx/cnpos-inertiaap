@@ -16,14 +16,25 @@ class SaleController extends Controller
      */
     public function create()
     {
-        $store = Store::where('user_id', auth()->id())->firstOrFail();
+        $store = Store::where('user_id', auth()->id())->first();
+
+        if (!$store) {
+            return redirect()->route('stores.create')
+                ->with('error', 'Anda belum memiliki toko, buat toko terlebih dahulu sebelum menambahkan penjualan.');
+        }
 
         $products = Product::where('store_id', $store->id)->get();
+
+        if ($products->isEmpty()) {
+            return redirect()->route('products.index')
+                ->with('error', 'Belum ada produk di toko Anda, buat produk terlebih dahulu sebelum membuat penjualan.');
+        }
 
         return Inertia::render('Sale/Create', [
             'products' => $products,
         ]);
     }
+
 
     /**
      * Simpan transaksi penjualan

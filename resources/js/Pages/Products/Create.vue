@@ -40,7 +40,7 @@
 </template>
 
 <script setup>
-import { useForm, Link } from '@inertiajs/vue3'
+import { useForm, Link, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Swal from 'sweetalert2'
 
@@ -51,16 +51,36 @@ const form = useForm({
   price: '',
   discount: 0,
 })
+const page = usePage()
 
 const submit = () => {
   form.post('/products', {
     onSuccess: () => {
-      Swal.fire({
-        title: 'Berhasil!',
-        text: 'Produk berhasil disimpan.',
-        icon: 'success',
-        confirmButtonText: 'OK'
-      })
+      if (page.props.flash.success) {
+        Swal.fire({
+          title: 'Berhasil!',
+          text: page.props.flash.success,
+          icon: 'success',
+          confirmButtonText: 'OK'
+        })
+      }
+    },
+    onError: () => {
+      if (page.props.flash.error) {
+        Swal.fire({
+          title: 'Gagal!',
+          text: page.props.flash.error,
+          icon: 'error',
+          confirmButtonText: 'OK'
+        })
+      } else {
+        Swal.fire({
+          title: 'Gagal!',
+          text: 'Silakan periksa kembali input Anda.',
+          icon: 'error',
+          confirmButtonText: 'OK'
+        })
+      }
     }
   })
 }

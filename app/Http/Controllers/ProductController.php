@@ -38,9 +38,16 @@ class ProductController extends Controller
             'discount' => 'nullable|numeric|min:0|max:100',
         ]);
 
-        // 🔥 cari store milik user login
-        $store = auth()->user()->store; // kalau relasinya hasOne
-        // atau auth()->user()->stores()->first(); // kalau hasMany
+        // 🔥 cek apakah user punya store
+       $store = auth()->user()->store()->first();
+       //dd(auth()->user()->store);
+
+        // $store = auth()->user()->stores()->first(); // kalau hasMany
+
+        if (!$store || !$store->id) {
+            return redirect()->route('products.index')
+                ->with('error', 'Anda belum memiliki toko, buat toko terlebih dahulu sebelum menambahkan produk.');
+        }
 
         Product::create([
             'sku'      => $request->sku,
@@ -48,13 +55,11 @@ class ProductController extends Controller
             'cost'     => $request->cost,
             'price'    => $request->price,
             'discount' => $request->discount ?? 0,
-            'store_id' => $store->id, // pastikan terhubung ke toko user
+            'store_id' => $store->id,
         ]);
 
-        return redirect()->route('products.index')
-            ->with('success', 'Produk berhasil ditambahkan');
+        return redirect()->route('products.index')->with('success', 'Produk berhasil ditambahkan');
     }
-
 
 
     // 📌 Form edit produk
@@ -65,7 +70,6 @@ class ProductController extends Controller
         ]);
     }
 
-    // 📌 Update produk
     public function update(Request $request, Product $product)
     {
         $request->validate([
@@ -77,6 +81,11 @@ class ProductController extends Controller
         ]);
 
         $store = auth()->user()->store;
+
+        if (!$store) {
+            return redirect()->route('products.index')
+                ->with('error', 'Anda belum memiliki toko, buat toko terlebih dahulu sebelum memperbarui produk.');
+        }
 
         $product->update([
             'sku'      => $request->sku,
