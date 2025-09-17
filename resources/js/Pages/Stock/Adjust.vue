@@ -52,6 +52,7 @@
 <script setup>
 import { useForm, Link } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import Swal from 'sweetalert2'
 
 const props = defineProps({
   products: Array,
@@ -66,6 +67,19 @@ const form = useForm({
 })
 
 const submit = () => {
-  form.post('/stock/adjust')
+  form.post('/stock/adjust', {
+    onSuccess: () => {
+      Swal.fire({
+        title: 'Berhasil!',
+        text: 'Penyesuaian stok berhasil disimpan.',
+        icon: 'success',
+        confirmButtonText: 'OK'
+      }).then(() => {
+        // opsional redirect ke halaman daftar stok
+        window.location.href = '/stock'
+      })
+    }
+  })
 }
 </script>
+

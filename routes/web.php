@@ -15,12 +15,13 @@ use App\Http\Controllers\UserController;
 use Inertia\Inertia;
 
 Route::get('/', function () {
-    return Inertia::render('Welcome', [
-        'canLogin' => Route::has('login'),
-        'canRegister' => Route::has('register'),
-        'laravelVersion' => Application::VERSION,
-        'phpVersion' => PHP_VERSION,
-    ]);
+    // Kalau user sudah login arahkan ke dashboard
+    if (auth()->check()) {
+        return redirect()->route('dashboard');
+    }
+
+    // Kalau belum login, arahkan ke halaman login
+    return redirect()->route('login');
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -43,7 +44,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 
 Route::middleware('auth')->group(function () {
-
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');

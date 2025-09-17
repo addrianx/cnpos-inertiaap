@@ -42,6 +42,7 @@
 <script setup>
 import { useForm, Link } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import Swal from 'sweetalert2'
 
 const form = useForm({
   sku: '',
@@ -52,6 +53,15 @@ const form = useForm({
 })
 
 const submit = () => {
-  form.post('/products')
+  form.post('/products', {
+    onSuccess: () => {
+      Swal.fire({
+        title: 'Berhasil!',
+        text: 'Produk berhasil disimpan.',
+        icon: 'success',
+        confirmButtonText: 'OK'
+      })
+    }
+  })
 }
 </script>
