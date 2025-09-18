@@ -29,6 +29,23 @@
       class="form-control w-100"
     />
   </div>
+
+  <!-- Filter Kategori -->
+<div class="col-12 col-md-auto">
+  <div class="d-flex align-items-center">
+    <label class="me-2">Kategori</label>
+    <select v-model="selectedCategory" class="form-select w-auto">
+      <option value="">Semua</option>
+      <option v-for="cat in categories" :key="cat.id" :value="cat.id">
+        {{ cat.name }}
+      </option>
+    </select>
+    <button class="btn btn-sm btn-success ms-2" @click="addCategory">
+      + Kategori
+    </button>
+  </div>
+</div>
+
 </div>
 
 
@@ -151,24 +168,48 @@ import AppLayout from '@/Layouts/AppLayout.vue'
 import Swal from 'sweetalert2'
 import { ref, computed, watch } from 'vue'
 
-const props = defineProps({ products: Array })
+const props = defineProps({
+  products: Array,
+  categories: Array,
+  filters: {
+    type: Object,
+    default: () => ({}), // 👈 kalau tidak ada, akan dapat object kosong
+  },
+})
 
 // state pagination
 const perPage = ref(10)
 const currentPage = ref(1)
 const searchQuery = ref('')
 
+const selectedCategory = ref(props.filters.category || '')
+const categories = ref([...props.categories])
+
 // hitung total halaman
 const totalPages = computed(() => Math.ceil(filteredProducts.value.length / perPage.value) || 1)
+
 const filteredProducts = computed(() => {
-  if (!searchQuery.value) return props.products
-  const query = searchQuery.value.toLowerCase()
-  return props.products.filter(
-    p =>
-      p.name.toLowerCase().includes(query) ||
-      p.sku.toLowerCase().includes(query)
-  )
+  let list = props.products
+
+  // filter pencarian
+  if (searchQuery.value) {
+    const query = searchQuery.value.toLowerCase()
+    list = list.filter(
+      p =>
+        p.name.toLowerCase().includes(query) ||
+        p.sku.toLowerCase().includes(query)
+    )
+  }
+
+  // filter kategori
+  if (selectedCategory.value) {
+    list = list.filter(p => p.category_id == selectedCategory.value)
+  }
+
+  return list
 })
+
+
 // ambil data sesuai halaman
 const paginatedProducts = computed(() => {
   const start = (currentPage.value - 1) * perPage.value
@@ -212,6 +253,32 @@ const nextPage = () => goToPage(currentPage.value + 1)
 watch([searchQuery, perPage], () => {
   currentPage.value = 1
 })
+
+const addCategory = async () => {
+  const { value: name } = await Swal.fire({
+    title: 'Tambah Kategori',
+    input: 'text',
+    inputLabel: 'Nama kategori',
+    inputPlaceholder: 'Masukkan nama kategori',
+    showCancelButton: true,
+    confirmButtonText: 'Simpan',
+    cancelButtonText: 'Batal',
+    inputValidator: (value) => {
+      if (!value) return 'Nama kategori tidak boleh kosong'
+    }
+  })
+
+  if (name) {
+    try {
+      const res = await axios.post('/categories/quick-add', { name })
+      categories.value.push(res.data.category) // tambahkan ke array reactive
+      Swal.fire('Berhasil!', 'Kategori berhasil ditambahkan', 'success')
+    } catch (err) {
+      Swal.fire('Gagal!', err.response?.data?.message || 'Terjadi kesalahan', 'error')
+    }
+  }
+}
+
 
 
 // konfirmasi hapus produk

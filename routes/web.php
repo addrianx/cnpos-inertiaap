@@ -11,6 +11,7 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SaleController;
 use App\Http\Controllers\StoreController;
 use App\Http\Controllers\StockTransferController;
+use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\UserController;
 
 
@@ -40,8 +41,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/sales/create', [SaleController::class, 'create'])->name('sales.create');
     Route::post('/sales', [SaleController::class, 'store'])->name('sales.store');
     // STORE ROUTE
-    Route::resource('/stores', StoreController::class);
-    Route::post('/users', [UserController::class, 'store'])->name('users.store');
+    Route::middleware(['role:admin'])->group(function () {
+        Route::resource('/stores', StoreController::class);
+    });
+    Route::resource('users', UserController::class);
     // STOCK TRANSFER ROUTE
     Route::get('/stock-transfers', [StockTransferController::class, 'index'])->name('stock-transfers.index');
     Route::get('/stock-transfers/create', [StockTransferController::class, 'create'])->name('stock-transfers.create');
@@ -49,6 +52,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // REGISTER USER ROUTE
     Route::get('/register', [RegisteredUserController::class, 'create'])->name('register');
     Route::post('/register', [RegisteredUserController::class, 'store']);
+
+    Route::resource('categories', CategoryController::class);
+    Route::post('/categories/quick-add', [CategoryController::class, 'quickAdd'])
+        ->name('categories.quickAdd');
 
 });
     

@@ -16,6 +16,7 @@ class Product extends Model
         'price',
         'discount',
         'store_id',
+        'category_id',
     ];
 
     public function stocks()
@@ -31,5 +32,10 @@ class Product extends Model
     public function saleItems()
     {
         return $this->hasMany(SaleItem::class);
+    }
+
+    public function category()
+    {
+        return $this->belongsTo(Category::class);
     }
 }

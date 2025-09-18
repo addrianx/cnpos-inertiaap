@@ -52,4 +52,14 @@ class User extends Authenticatable
         // kalau mau 1 user = 1 toko
         // pakai hasMany kalau 1 user bisa punya banyak toko
     }
+
+    public function roles()
+    {
+        return $this->belongsToMany(Role::class);
+    }
+
+    public function hasRole(string $role): bool
+    {
+        return $this->roles()->where('name', $role)->exists();
+    }
 }
