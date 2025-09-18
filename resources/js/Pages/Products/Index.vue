@@ -6,40 +6,32 @@
     </div>
 
     <!-- 🔥 Dropdown pilih jumlah data -->
-    <div class="d-flex justify-content-between align-items-center mb-2">
-      <div>
-        <label class="me-2">Tampilkan</label>
-        <select v-model="perPage" class="form-select d-inline-block w-auto">
-          <option :value="10">10</option>
-          <option :value="20">20</option>
-          <option :value="50">50</option>
-        </select>
-        <span class="ms-2">data per halaman</span>
-      </div>
-
-      <div>
-        <input
-          type="text"
-          v-model="searchQuery"
-          placeholder="Cari produk..."
-          class="form-control"
-          style="width: 250px"
-        />
-      </div>
-
+<div class="row mb-2 g-2">
+  <!-- Filter -->
+  <div class="col-12 col-md-auto">
+    <div class="d-flex align-items-center">
+      <label class="me-2">Tampilkan</label>
+      <select v-model="perPage" class="form-select w-auto">
+        <option :value="10">10</option>
+        <option :value="20">20</option>
+        <option :value="50">50</option>
+      </select>
+      <span class="ms-2">data per halaman</span>
     </div>
+  </div>
 
-    <!-- @if (session('error'))
-        <div class="alert alert-danger">
-            {{ session('error') }}
-        </div>
-    @endif
+  <!-- Search -->
+  <div class="col-12 col-md">
+    <input
+      type="text"
+      v-model="searchQuery"
+      placeholder="Cari produk..."
+      class="form-control w-100"
+    />
+  </div>
+</div>
 
-    @if (session('success'))
-        <div class="alert alert-success">
-            {{ session('success') }}
-        </div>
-    @endif -->
+
 
     <!-- 🔥 Table responsive -->
     <div class="table-responsive">

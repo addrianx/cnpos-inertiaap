@@ -6,28 +6,32 @@
     </div>
 
     <!-- Filter & show per page -->
-    <div class="d-flex justify-content-between align-items-center mb-2">
-      <div>
-        <label class="me-2">Tampilkan</label>
-        <select v-model.number="perPage" class="form-select d-inline-block w-auto">
-          <option :value="5">5</option>
-          <option :value="10">10</option>
-          <option :value="25">25</option>
-          <option :value="50">50</option>
-        </select>
-        <span class="ms-2">item per halaman</span>
+    <div class="row mb-2 g-2">
+      <!-- Filter -->
+      <div class="col-12 col-md-auto">
+        <div class="d-flex align-items-center">
+          <label class="me-2">Tampilkan</label>
+          <select v-model.number="perPage" class="form-select w-auto">
+            <option :value="5">5</option>
+            <option :value="10">10</option>
+            <option :value="25">25</option>
+            <option :value="50">50</option>
+          </select>
+          <span class="ms-2">item per halaman</span>
+        </div>
       </div>
 
-      <div>
+      <!-- Search -->
+      <div class="col-12 col-md">
         <input
           type="text"
           v-model="search"
           placeholder="Kode produk..."
-          class="form-control"
-          style="width: 250px"
+          class="form-control w-100"
         />
       </div>
     </div>
+
 
     <!-- Jika kosong -->
     <div v-if="filteredSales.length === 0" class="alert alert-info">
@@ -36,7 +40,7 @@
 
     <!-- Jika ada data -->
     <div v-else class="table-responsive">
-      <table class="table table-bordered table-striped">
+      <table class="table table-bordered table-striped text-nowrap">
         <thead class="table-dark">
           <tr>
             <th>ID</th>

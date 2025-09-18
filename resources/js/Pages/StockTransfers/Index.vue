@@ -6,29 +6,35 @@
     </div>
 
     <!-- 🔍 Search & Per Page -->
-    <div class="d-flex justify-content-between align-items-center mb-2">
-      <div>
-        <label class="me-2">Tampilkan</label>
-        <select v-model.number="perPage" class="form-select d-inline-block w-auto">
-          <option :value="5">5</option>
-          <option :value="10">10</option>
-          <option :value="25">25</option>
-          <option :value="50">50</option>
-        </select>
-        <span class="ms-2">item per halaman</span>
+    <div class="row mb-2 g-2">
+      <!-- Filter -->
+      <div class="col-12 col-md-auto">
+        <div class="d-flex align-items-center">
+          <label class="me-2">Tampilkan</label>
+          <select v-model.number="perPage" class="form-select w-auto">
+            <option :value="5">5</option>
+            <option :value="10">10</option>
+            <option :value="25">25</option>
+            <option :value="50">50</option>
+          </select>
+          <span class="ms-2">item per halaman</span>
+        </div>
       </div>
-      <div>
+
+      <!-- Search -->
+      <div class="col-12 col-md">
         <input
           v-model="search"
           type="text"
-          class="form-control"
+          class="form-control w-100"
           placeholder="Cari produk, catatan, atau toko..."
         />
       </div>
     </div>
 
+
     <div class="table-responsive">
-      <table class="table table-bordered table-striped no-wrap">
+      <table class="table table-bordered table-striped text-nowrap">
         <thead class="table-dark">
           <tr>
             <th>#</th>
