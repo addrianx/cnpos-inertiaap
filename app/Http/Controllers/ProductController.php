@@ -11,10 +11,16 @@ class ProductController extends Controller
     // 📌 Tampilkan daftar produk
     public function index()
     {
+        $store = auth()->user()->store;
+
+        if (!$store) {
+            return redirect()->route('stores.create')
+                ->with('error', 'Anda belum memiliki toko, buat toko terlebih dahulu sebelum mengelola produk.');
+        }
+
         $products = Product::with('stocks')
-            ->whereHas('store', function ($query) {
-                $query->where('user_id', auth()->id());
-            })->get();
+            ->where('store_id', $store->id)
+            ->get();
 
         return Inertia::render('Products/Index', [
             'products' => $products,
@@ -24,6 +30,13 @@ class ProductController extends Controller
     // 📌 Form tambah produk
     public function create()
     {
+        $store = auth()->user()->store;
+
+        if (!$store) {
+            return redirect()->route('stores.create')
+                ->with('error', 'Anda belum memiliki toko, buat toko terlebih dahulu sebelum menambahkan produk.');
+        }
+
         return Inertia::render('Products/Create');
     }
 

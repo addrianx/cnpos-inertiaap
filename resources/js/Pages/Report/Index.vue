@@ -37,6 +37,7 @@
             <td>{{ totalModal.toLocaleString() }}</td>
           </tr>
         </tfoot>
+        
       </table>
     </div>
 

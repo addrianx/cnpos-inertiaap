@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 *{
-  font-size: .8rem;
+  font-size: .9rem;
 }
 .collapse {
   visibility: visible !important;

@@ -26,10 +26,15 @@ class StockController extends Controller
 
     public function adjustForm()
     {
-        // Produk hanya yang punya store_id sesuai user login
+        // Ambil produk milik user login
         $products = Product::whereHas('store', function ($q) {
             $q->where('user_id', auth()->id());
         })->get();
+
+        if ($products->isEmpty()) {
+            return redirect()->route('products.create')
+                ->with('error', 'Belum ada produk di toko Anda, buat produk terlebih dahulu sebelum mengatur stok.');
+        }
 
         return Inertia::render('Stock/Adjust', [
             'products' => $products
@@ -46,7 +51,7 @@ class StockController extends Controller
             'note'       => 'nullable|string',
         ]);
 
-        // 🔒 Pastikan produk milik store user login
+        // 🔒 Pastikan produk milik user login
         $product = Product::where('id', $request->product_id)
             ->whereHas('store', function ($q) {
                 $q->where('user_id', auth()->id());

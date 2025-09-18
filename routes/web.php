@@ -10,6 +10,7 @@ use App\Http\Controllers\StockController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SaleController;
 use App\Http\Controllers\StoreController;
+use App\Http\Controllers\StockTransferController;
 use App\Http\Controllers\UserController;
 
 
@@ -28,15 +29,24 @@ Route::get('/', function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', [ProductController::class, 'index'])->name('dashboard');
     Route::resource('products', ProductController::class);
+    // STOCK ROUTE
     Route::get('/stock/adjust', [StockController::class, 'adjustForm'])->name('stock.adjust.form');
     Route::post('/stock/adjust', [StockController::class, 'adjust'])->name('stock.adjust');
     Route::get('/stock', [StockController::class, 'index'])->name('stock.index');
+    // REPORT ROUTE
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
+    // SALES ROUTE
     Route::get('/sales', [SaleController::class, 'index'])->name('sales.index');
     Route::get('/sales/create', [SaleController::class, 'create'])->name('sales.create');
     Route::post('/sales', [SaleController::class, 'store'])->name('sales.store');
+    // STORE ROUTE
     Route::resource('/stores', StoreController::class);
     Route::post('/users', [UserController::class, 'store'])->name('users.store');
+    // STOCK TRANSFER ROUTE
+    Route::get('/stock-transfers', [StockTransferController::class, 'index'])->name('stock-transfers.index');
+    Route::get('/stock-transfers/create', [StockTransferController::class, 'create'])->name('stock-transfers.create');
+    Route::post('/stock-transfers/transfer', [StockTransferController::class, 'transfer'])->name('stock-transfers.transfer');
+    // REGISTER USER ROUTE
     Route::get('/register', [RegisteredUserController::class, 'create'])->name('register');
     Route::post('/register', [RegisteredUserController::class, 'store']);
 
@@ -47,7 +57,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 
 Route::middleware('auth')->group(function () {
-
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');

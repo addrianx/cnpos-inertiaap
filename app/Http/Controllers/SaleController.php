@@ -11,9 +11,33 @@ use Inertia\Inertia;
 
 class SaleController extends Controller
 {
+
+    /**
+     * Daftar semua transaksi milik store user login
+     */
+    public function index()
+    {
+        $store = Store::where('user_id', auth()->id())->first();
+
+        if (!$store) {
+            return redirect()->route('stores.create')
+                ->with('error', 'Anda belum memiliki toko, buat toko terlebih dahulu sebelum melihat daftar penjualan.');
+        }
+
+        $sales = Sale::with('items.product')
+            ->where('store_id', $store->id)
+            ->latest()
+            ->get();
+
+        return Inertia::render('Sale/Index', [
+            'sales' => $sales,
+        ]);
+    }
+
     /**
      * Halaman buat penjualan baru
      */
+
     public function create()
     {
         $store = Store::where('user_id', auth()->id())->first();
@@ -122,21 +146,7 @@ class SaleController extends Controller
         }
     }
 
-    /**
-     * Daftar semua transaksi milik store user login
-     */
-    public function index()
-    {
-        $store = Store::where('user_id', auth()->id())->firstOrFail();
 
-        $sales = Sale::with('items.product')
-            ->where('store_id', $store->id)
-            ->latest()
-            ->get();
 
-        return Inertia::render('Sale/Index', [
-            'sales' => $sales,
-        ]);
-    }
 }
 

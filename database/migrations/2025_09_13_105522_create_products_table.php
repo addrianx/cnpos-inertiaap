@@ -14,12 +14,15 @@ return new class extends Migration
         Schema::create('products', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('sku')->unique(); // kode barang / barcode
+            $table->string('sku'); // kode barang / barcode
             $table->decimal('price', 12, 2); // harga jual default
             $table->decimal('cost', 12, 2);  // modal per item
             $table->decimal('discount', 5, 2)->default(0); // diskon default (%)
             $table->foreignId('store_id')->constrained()->onDelete('cascade');
             $table->timestamps();
+
+            // unique kombinasi per toko
+            $table->unique(['store_id', 'sku']);
         });
     }
 
