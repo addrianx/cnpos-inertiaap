@@ -10,6 +10,12 @@
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
 
+        <!-- PWA manifest & theme -->
+        <link rel="manifest" href="/manifest.json">
+        <meta name="theme-color" content="#0d6efd">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <link rel="apple-touch-icon" href="/images/icons/icon-192x192.png">
         <!-- Scripts -->
         @routes
         @vite(['resources/js/app.js', "resources/js/Pages/{$page['component']}.vue"])

@@ -54,16 +54,15 @@
             Penjualan
           </Link>
         </li>
-<li v-if="$page.props.auth.user.roles.some(role => role.name === 'admin')">
-  <Link
-    class="nav-link text-white"
-    href="/stores"
-    :class="{ active: $page.url.startsWith('/stores') }"
-  >
-    Toko
-  </Link>
-</li>
-
+        <li v-if="$page.props.auth.user.roles.some(role => role.name === 'admin')">
+          <Link
+            class="nav-link text-white"
+            href="/stores"
+            :class="{ active: $page.url.startsWith('/stores') }"
+          >
+            Toko
+          </Link>
+        </li>
         <li>
           <Link
             class="nav-link text-white"
