@@ -142,7 +142,7 @@
     </nav>
 
     <!-- Modal Manage Kategori -->
-    <div v-if="showCategoryModal" class="modal fade show d-block" tabindex="-1">
+    <div v-if="showCategoryModal" class="modal fad modal-categories show d-block" tabindex="-1">
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
           <div class="modal-header">
@@ -299,3 +299,9 @@ const confirmDelete = (id) => {
   })
 }
 </script>
+
+<style>
+.modal.fad.modal-categories{
+  background-color: rgba(0, 0, 0, 0.548);
+}
+</style>

@@ -5,7 +5,8 @@
       <Link href="/stores" class="btn btn-secondary">← Kembali</Link>
     </div>
 
-    <div class="card">
+    <!-- Form Tambah Toko -->
+    <div class="card mb-4">
       <div class="card-header bg-dark text-white">Form Tambah Toko</div>
       <div class="card-body">
         <form @submit.prevent="submitStore">
@@ -53,13 +54,14 @@
       </div>
     </div>
 
-    <!-- 🔥 Form Tambah User Baru -->
-    <div class="card mt-4">
+    <!-- Form Tambah User Baru -->
+    <div class="card">
       <div class="card-header bg-secondary text-white">
         Tambah User Baru (Manager Toko)
       </div>
       <div class="card-body">
         <form @submit.prevent="submitUser">
+          <!-- Nama -->
           <div class="mb-3">
             <label class="form-label">Nama</label>
             <input
@@ -71,6 +73,7 @@
             />
           </div>
 
+          <!-- Email -->
           <div class="mb-3">
             <label class="form-label">Email</label>
             <input
@@ -82,6 +85,7 @@
             />
           </div>
 
+          <!-- Password -->
           <div class="mb-3">
             <label class="form-label">Password</label>
             <input
@@ -93,6 +97,19 @@
             />
           </div>
 
+          <!-- Pilih Role -->
+          <div class="mb-3">
+            <label class="form-label">Role</label>
+            <select v-model="formUser.role_id" class="form-select" required>
+              <option value="" disabled>Pilih role untuk user ini</option>
+              <option v-for="role in roles" :key="role.id" :value="role.id">
+                {{ role.label }}
+              </option>
+            </select>
+            <small class="text-muted">Role menentukan hak akses user di sistem</small>
+          </div>
+
+          <!-- Tombol Simpan User -->
           <button type="submit" class="btn btn-primary">Simpan User</button>
         </form>
       </div>
@@ -107,21 +124,26 @@ import Swal from 'sweetalert2'
 import { reactive } from 'vue'
 
 defineProps({
-  users: Array, // dikirim dari controller untuk dropdown user manager
+  users: Array, // untuk dropdown User Manager
+  roles: Array, // daftar roles dari controller
 })
 
+// Form Toko
 const formStore = reactive({
   name: '',
   address: '',
   user_id: '',
 })
 
+// Form User Baru
 const formUser = reactive({
   name: '',
   email: '',
   password: '',
+  role_id: '', // tambahan role
 })
 
+// Submit Toko
 const submitStore = () => {
   router.post('/stores', formStore, {
     onSuccess: () => {
@@ -136,17 +158,31 @@ const submitStore = () => {
   })
 }
 
+// Submit User
 const submitUser = () => {
-  router.post('/users', formUser, {
+  // Buat payload plain object dari reactive formUser
+  const payload = {
+    name: formUser.name,
+    email: formUser.email,
+    password: formUser.password,
+    role_id: formUser.role_id,
+  }
+
+  router.post('/users', payload, {
     onSuccess: () => {
       Swal.fire('Berhasil!', 'User baru berhasil ditambahkan.', 'success')
+      // Reset form
       formUser.name = ''
       formUser.email = ''
       formUser.password = ''
+      formUser.role_id = ''
     },
-    onError: () => {
+    onError: (errors) => {
       Swal.fire('Gagal!', 'Terjadi kesalahan saat menambahkan user.', 'error')
+      console.log(errors)
     },
   })
 }
+
+
 </script>

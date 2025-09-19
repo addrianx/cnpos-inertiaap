@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Store;
 use App\Models\User;
+use App\Models\Role;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -14,8 +15,7 @@ class StoreController extends Controller
      */
     public function index()
     {
-        $stores = Store::with('user')->get();
-
+        $stores = Store::with(['user.roles'])->get(); // load role manager
         return Inertia::render('Store/Index', [
             'stores' => $stores,
         ]);
@@ -26,9 +26,11 @@ class StoreController extends Controller
      */
     public function create()
     {
-        $users = User::all(); // untuk pilih manager toko
+        $users = User::all();  // untuk pilih manager toko
+        $roles = Role::all();  // untuk dropdown role saat tambah user baru
         return Inertia::render('Store/Create', [
             'users' => $users,
+            'roles' => $roles,
         ]);
     }
 
@@ -54,9 +56,11 @@ class StoreController extends Controller
     public function edit(Store $store)
     {
         $users = User::all();
+        $roles = Role::all();
         return Inertia::render('Store/Edit', [
             'store' => $store,
             'users' => $users,
+            'roles' => $roles,
         ]);
     }
 
@@ -82,7 +86,6 @@ class StoreController extends Controller
     public function destroy(Store $store)
     {
         $store->delete();
-
         return redirect()->route('stores.index')->with('success', 'Toko berhasil dihapus!');
     }
 }

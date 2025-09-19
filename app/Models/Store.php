@@ -20,4 +20,10 @@ class Store extends Model
     {
         return $this->hasMany(Product::class);
     }
+
+    public function role()
+    {
+        // Ambil role dari user manager toko
+        return $this->user ? $this->user->roles() : null;
+    }
 }
