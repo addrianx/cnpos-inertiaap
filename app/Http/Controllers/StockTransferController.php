@@ -48,7 +48,15 @@ class StockTransferController extends Controller
                 ->with('error', 'Anda belum memiliki toko, buat toko terlebih dahulu.');
         }
 
-        $products = Product::where('store_id', $store->id)->get();
+    $products = Product::where('store_id', $store->id)
+        ->get()
+        ->map(function ($p) {
+            return [
+                'id'    => $p->id,
+                'name'  => $p->name,
+                'stock' => $p->current_stock,
+            ];
+        });
         $stores   = Store::where('id', '!=', $store->id)->get();
 
         return Inertia::render('StockTransfers/Create', [

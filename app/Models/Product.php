@@ -24,6 +24,13 @@ class Product extends Model
         return $this->hasMany(Stock::class);
     }
 
+    public function getCurrentStockAttribute()
+    {
+        $in  = $this->stocks()->where('type', 'in')->sum('quantity');
+        $out = $this->stocks()->where('type', 'out')->sum('quantity');
+        return $in - $out;
+    }
+    
     public function store()
     {
         return $this->belongsTo(Store::class);

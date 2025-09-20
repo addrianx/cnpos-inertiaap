@@ -39,6 +39,15 @@
         <li>
           <Link
             class="nav-link text-white"
+            href="/stock-loan"
+            :class="{ active: /^\/stock-loan(\/|$)/.test($page.url) }"
+          >
+            Pinjam Stock
+          </Link>
+        </li>
+        <li>
+          <Link
+            class="nav-link text-white"
             href="/stock-transfers"
             :class="{ active: /^\/stock-transfers(\/|$)/.test($page.url) }"
           >

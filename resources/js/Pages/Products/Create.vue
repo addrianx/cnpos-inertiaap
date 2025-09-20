@@ -20,14 +20,24 @@
       <!-- Harga Modal -->
       <div class="mb-3">
         <label class="form-label">Harga Modal (Cost)</label>
-        <input v-model="form.cost" type="number" step="0.01" class="form-control" />
+        <input
+          v-model="costFormatted"
+          type="text"
+          class="form-control"
+          placeholder="Masukkan harga modal"
+        />
         <div v-if="form.errors.cost" class="text-danger small">{{ form.errors.cost }}</div>
       </div>
 
       <!-- Harga Jual -->
       <div class="mb-3">
         <label class="form-label">Harga Jual (Price)</label>
-        <input v-model="form.price" type="number" step="0.01" class="form-control" />
+        <input
+          v-model="priceFormatted"
+          type="text"
+          class="form-control"
+          placeholder="Masukkan harga jual"
+        />
         <div v-if="form.errors.price" class="text-danger small">{{ form.errors.price }}</div>
       </div>
 
@@ -60,6 +70,7 @@
 <script setup>
 import { useForm, Link, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import { computed } from 'vue'
 import Swal from 'sweetalert2'
 
 const page = usePage()
@@ -74,6 +85,28 @@ const form = useForm({
   price: '',
   discount: 0,
   category_id: '', // tambahan untuk dropdown kategori
+})
+
+// Computed untuk formatting cost
+const costFormatted = computed({
+  get() {
+    return form.cost ? Number(form.cost).toLocaleString("id-ID") : ""
+  },
+  set(value) {
+    const numericValue = value.replace(/\D/g, "")
+    form.cost = numericValue ? parseInt(numericValue, 10) : 0
+  }
+})
+
+// Computed untuk formatting price
+const priceFormatted = computed({
+  get() {
+    return form.price ? Number(form.price).toLocaleString("id-ID") : ""
+  },
+  set(value) {
+    const numericValue = value.replace(/\D/g, "")
+    form.price = numericValue ? parseInt(numericValue, 10) : 0
+  }
 })
 
 const submit = () => {

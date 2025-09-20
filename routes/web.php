@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\StockController;
+use App\Http\Controllers\StockLoanController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SaleController;
 use App\Http\Controllers\StoreController;
@@ -44,6 +45,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware(['role:admin'])->group(function () {
         Route::resource('/stores', StoreController::class);
     });
+    // ➕ STOCK LOAN ROUTE
+    Route::get('/stock-loan', [StockLoanController::class, 'index'])->name('stockloan.index');
+    Route::get('/stock-loan/create', [StockLoanController::class, 'create'])->name('stockloan.create');
+    Route::post('/stock-loan/store', [StockLoanController::class, 'store'])->name('stockloan.store');
+    // user route
     Route::resource('users', UserController::class);
     // STOCK TRANSFER ROUTE
     Route::get('/stock-transfers', [StockTransferController::class, 'index'])->name('stock-transfers.index');

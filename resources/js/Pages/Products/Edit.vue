@@ -18,13 +18,23 @@
       <!-- Harga Modal -->
       <div class="mb-3">
         <label class="form-label">Harga Modal</label>
-        <input v-model="form.cost" type="number" class="form-control" />
+        <input
+          type="text"
+          class="form-control"
+          :value="formatRupiah(form.cost)"
+          @input="updateCost($event)"
+        />
       </div>
 
       <!-- Harga Jual -->
       <div class="mb-3">
         <label class="form-label">Harga Jual</label>
-        <input v-model="form.price" type="number" class="form-control" />
+        <input
+          type="text"
+          class="form-control"
+          :value="formatRupiah(form.price)"
+          @input="updatePrice($event)"
+        />
       </div>
 
       <!-- Diskon -->
@@ -74,6 +84,26 @@ const form = useForm({
   discount: props.product.discount,
   category_id: props.product.category_id || '',
 })
+
+// Format ke Rupiah
+const formatRupiah = (value) => {
+  if (!value) return ''
+  return new Intl.NumberFormat('id-ID').format(value)
+}
+
+// Update cost
+const updateCost = (e) => {
+  const raw = e.target.value.replace(/\D/g, '') // ambil angka saja
+  form.cost = Number(raw)
+  e.target.value = formatRupiah(raw)
+}
+
+// Update price
+const updatePrice = (e) => {
+  const raw = e.target.value.replace(/\D/g, '')
+  form.price = Number(raw)
+  e.target.value = formatRupiah(raw)
+}
 
 // Submit update
 const submit = () => {

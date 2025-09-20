@@ -13,10 +13,22 @@ class AdminUserSeeder extends Seeder
      */
     public function run(): void
     {
-        DB::table('users')->insert([
+        // Buat user admin
+        $userId = DB::table('users')->insertGetId([
             'name' => 'Admin',
             'email' => 'admin@example.com',
             'password' => Hash::make('admin123'),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // Ambil role admin
+        $roleId = DB::table('roles')->where('name', 'admin')->value('id');
+
+        // Assign role ke user
+        DB::table('role_user')->insert([
+            'user_id' => $userId,
+            'role_id' => $roleId,
             'created_at' => now(),
             'updated_at' => now(),
         ]);

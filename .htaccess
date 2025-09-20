@@ -1,0 +1,23 @@
+# Blokir file sensitif
+<Files .*>
+    <IfModule !mod_authz_core.c>
+        Order deny,allow
+        Deny from all
+    </IfModule>
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+</Files>
+
+# Redirect semua request ke /public
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Kalau URL belum mengandung /public
+    RewriteCond %{REQUEST_URI} !^/public
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+
+    # Tambahkan /public di depan
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>

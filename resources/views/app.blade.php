@@ -18,7 +18,7 @@
         <link rel="apple-touch-icon" href="/images/icons/icon-192x192.png">
         <!-- Scripts -->
         @routes
-        @vite(['resources/js/app.js', "resources/js/Pages/{$page['component']}.vue"])
+        @vite(['resources/js/app.js'])
         @inertiaHead
     </head>
     <body class="font-sans antialiased">

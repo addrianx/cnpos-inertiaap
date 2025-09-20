@@ -66,8 +66,14 @@
 
       <div class="mb-3">
         <label class="form-label">Dibayar</label>
-        <input v-model.number="form.paid" type="number" class="form-control" min="0" />
+        <input
+          v-model="paidFormatted"
+          type="text"
+          class="form-control"
+          placeholder="Masukkan nominal (contoh: 100.000)"
+        />
       </div>
+
 
       <div class="mb-3">
         <label class="form-label">Kembalian</label>
@@ -97,6 +103,18 @@ const form = useForm({
   items: [{ product_id: "", quantity: 1, discount: 0 }],
   paid: 0,
 });
+
+// computed untuk format tampilan input
+const paidFormatted = computed({
+  get() {
+    return form.paid ? form.paid.toLocaleString("id-ID") : ""
+  },
+  set(value) {
+    // hapus semua selain angka
+    const numericValue = value.replace(/\D/g, "")
+    form.paid = numericValue ? parseInt(numericValue, 10) : 0
+  },
+})
 
 // Tambah/hapus item
 const addItem = () => form.items.push({ product_id: "", quantity: 1, discount: 0 });
