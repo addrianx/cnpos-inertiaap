@@ -15,10 +15,22 @@
             </select>
           </div>
 
-          <!-- Jumlah -->
-          <div class="col-md-2 mb-2">
+          <!-- Jumlah + Stok -->
+          <div class="col-md-3 mb-2">
             <label class="form-label">Jumlah</label>
-            <input v-model.number="item.quantity" type="number" class="form-control" min="1" />
+            <div class="input-group">
+            <input
+              v-model.number="item.quantity"
+              type="number"
+              class="form-control"
+              min="1"
+              :max="props.products.find(p => p.id === item.product_id)?.stock ?? 1"
+            />
+
+              <span class="input-group-text bg-light">
+                Stok: {{ props.products.find(p => p.id === item.product_id)?.stock ?? 0 }}
+              </span>
+            </div>
           </div>
 
           <!-- Diskon -->
@@ -112,6 +124,20 @@ const change = computed(() => Math.max(form.paid - totalTransaction.value, 0));
 
 // Submit form
 const submit = () => {
+  // ✅ Cek stok di sisi client juga
+  for (let item of itemsWithDetails.value) {
+    const product = props.products.find((p) => p.id === item.product_id);
+    if (product && product.stock < item.quantity) {
+      Swal.fire({
+        icon: "warning",
+        title: "Stok Tidak Cukup",
+        text: `Stok untuk ${product.name} hanya ${product.stock}, tidak bisa jual ${item.quantity}.`,
+        confirmButtonColor: "#d33",
+      });
+      return; // hentikan submit
+    }
+  }
+
   form.post("/sales", {
     data: {
       items: itemsWithDetails.value,
@@ -131,14 +157,14 @@ const submit = () => {
       form.reset();
     },
     onError: (errors) => {
-      console.error(errors);
       Swal.fire({
         icon: "error",
         title: "Oops...",
-        text: "Terjadi kesalahan, periksa input Anda.",
+        text: errors.msg || "Terjadi kesalahan, periksa input Anda.",
         confirmButtonColor: "#d33",
       });
     },
   });
 };
+
 </script>

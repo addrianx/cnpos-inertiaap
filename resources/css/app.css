@@ -8,3 +8,20 @@
 .collapse {
   visibility: visible !important;
 }
+
+/* Ubah warna dan ketebalan progress bar inertia */
+#nprogress .bar {
+  background: #2563eb !important; /* warna biru */
+  height: 5px !important;         /* default 2px, kita bikin lebih tebal */
+}
+
+/* Efek cahaya di ujung progress */
+#nprogress .peg {
+  box-shadow: 0 0 10px #2563eb, 0 0 5px #2563eb !important;
+}
+
+/* Kalau mau spinner terlihat */
+#nprogress .spinner-icon {
+  border-top-color: #2563eb !important;
+  border-left-color: #2563eb !important;
+}

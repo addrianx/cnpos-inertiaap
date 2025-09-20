@@ -24,7 +24,7 @@
       <!-- Search -->
       <div class="col-12 col-md">
         <input
-          v-model="search"
+          v-model="searchInput"
           type="text"
           class="form-control w-100"
           placeholder="Cari produk atau catatan..."
@@ -32,8 +32,16 @@
       </div>
     </div>
 
+    <div class="table-responsive position-relative">
+      <!-- 🔄 Loader overlay -->
+      <div
+        v-if="loading"
+        class="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-white bg-opacity-75"
+        style="z-index:10"
+      >
+        <div class="spinner-border text-primary" role="status"></div>
+      </div>
 
-    <div class="table-responsive">
       <table class="table table-bordered table-striped text-nowrap">
         <thead class="table-dark">
           <tr>
@@ -46,7 +54,7 @@
         </thead>
         <tbody>
           <!-- Jika kosong -->
-          <tr v-if="paginatedStocks.length === 0">
+          <tr v-if="!loading && paginatedStocks.length === 0">
             <td colspan="5" class="text-center text-muted py-4">
               Tidak ada stok.
             </td>
@@ -67,22 +75,15 @@
     <!-- 🔽 Pagination -->
     <nav class="mt-3">
       <ul class="pagination justify-content-center">
-        <!-- Prev -->
         <li class="page-item" :class="{ disabled: currentPage === 1 }">
           <button class="page-link" @click="prevPage">&laquo;</button>
         </li>
-
-        <!-- Halaman pertama -->
         <li v-if="visiblePages[0] > 1" class="page-item">
           <button class="page-link" @click="goToPage(1)">1</button>
         </li>
-
-        <!-- Ellipsis sebelum -->
         <li v-if="visiblePages[0] > 2" class="page-item disabled">
           <span class="page-link">...</span>
         </li>
-
-        <!-- Loop halaman -->
         <li
           v-for="page in visiblePages"
           :key="page"
@@ -92,20 +93,14 @@
             {{ page }}
           </button>
         </li>
-
-        <!-- Ellipsis sesudah -->
         <li v-if="visiblePages[visiblePages.length - 1] < totalPages - 1" class="page-item disabled">
           <span class="page-link">...</span>
         </li>
-
-        <!-- Halaman terakhir -->
         <li v-if="visiblePages[visiblePages.length - 1] < totalPages" class="page-item">
           <button class="page-link" @click="goToPage(totalPages)">
             {{ totalPages }}
           </button>
         </li>
-
-        <!-- Next -->
         <li class="page-item" :class="{ disabled: currentPage === totalPages }">
           <button class="page-link" @click="nextPage">&raquo;</button>
         </li>
@@ -113,7 +108,6 @@
     </nav>
   </AppLayout>
 </template>
-
 
 <script setup>
 import { Link } from '@inertiajs/vue3'
@@ -125,7 +119,21 @@ const props = defineProps({ stocks: Array })
 // state
 const currentPage = ref(1)
 const perPage = ref(10)
-const search = ref('')
+const searchInput = ref('')   // raw input
+const search = ref('')        // actual search with debounce
+const loading = ref(false)
+
+// debounce search 300ms
+let timeout
+watch(searchInput, (val) => {
+  loading.value = true
+  clearTimeout(timeout)
+  timeout = setTimeout(() => {
+    search.value = val
+    currentPage.value = 1
+    loading.value = false
+  }, 300)
+})
 
 // filter by search
 const filteredStocks = computed(() => {
@@ -169,7 +177,4 @@ const visiblePages = computed(() => {
 const goToPage = (page) => { if (page >= 1 && page <= totalPages.value) currentPage.value = page }
 const nextPage = () => goToPage(currentPage.value + 1)
 const prevPage = () => goToPage(currentPage.value - 1)
-
-// reset ke halaman 1 jika perPage atau search berubah
-watch([perPage, search], () => { currentPage.value = 1 })
 </script>

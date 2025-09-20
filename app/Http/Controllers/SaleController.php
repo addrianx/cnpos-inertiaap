@@ -47,7 +47,19 @@ class SaleController extends Controller
                 ->with('error', 'Anda belum memiliki toko, buat toko terlebih dahulu sebelum menambahkan penjualan.');
         }
 
-        $products = Product::where('store_id', $store->id)->get();
+        $products = Product::where('store_id', $store->id)
+        ->withSum(['stocks as stok_masuk' => function($q) {
+            $q->where('type', 'in');
+        }], 'quantity')
+        ->withSum(['stocks as stok_keluar' => function($q) {
+            $q->where('type', 'out');
+        }], 'quantity')
+        ->get()
+        ->map(function ($product) {
+            $product->stock = ($product->stok_masuk ?? 0) - ($product->stok_keluar ?? 0);
+            return $product;
+        });
+
 
         if ($products->isEmpty()) {
             return redirect()->route('products.index')
@@ -80,11 +92,19 @@ class SaleController extends Controller
         try {
             $subtotal = 0;
 
-            // Hitung subtotal transaksi
             foreach ($request->items as $item) {
                 $product = Product::where('id', $item['product_id'])
                     ->where('store_id', $store->id)
                     ->firstOrFail();
+
+                // ✅ Hitung stok tersedia
+                $stokMasuk = Stock::where('product_id', $product->id)->where('type', 'in')->sum('quantity');
+                $stokKeluar = Stock::where('product_id', $product->id)->where('type', 'out')->sum('quantity');
+                $stokTersedia = $stokMasuk - $stokKeluar;
+
+                if ($stokTersedia < $item['quantity']) {
+                    throw new \Exception("Stok {$product->name} tidak cukup. Sisa stok: {$stokTersedia}");
+                }
 
                 $price = $product->price;
                 $lineSubtotal = ($price * $item['quantity']) - ($item['discount'] ?? 0);
@@ -94,7 +114,6 @@ class SaleController extends Controller
             $discount = $request->discount ?? 0;
             $total    = max($subtotal - $discount, 0);
 
-            // Buat transaksi (sale_code otomatis digenerate di model)
             $sale = Sale::create([
                 'user_id'  => auth()->id(),
                 'store_id' => $store->id,
@@ -105,7 +124,6 @@ class SaleController extends Controller
                 'change'   => max($request->paid - $total, 0),
             ]);
 
-            // Simpan item penjualan + stok keluar
             foreach ($request->items as $item) {
                 $product = Product::where('id', $item['product_id'])
                     ->where('store_id', $store->id)
@@ -122,13 +140,12 @@ class SaleController extends Controller
                     'subtotal'   => $lineSubtotal,
                 ]);
 
-                // Catat pergerakan stok dengan sale_code
                 Stock::create([
                     'product_id' => $product->id,
                     'type'       => 'out',
                     'quantity'   => $item['quantity'],
-                    'reference'  => $sale->sale_code,         // ✅ pakai kode penjualan
-                    'note'       => 'Penjualan ' . $sale->sale_code, // ✅ pakai kode penjualan
+                    'reference'  => $sale->sale_code,
+                    'note'       => 'Penjualan ' . $sale->sale_code,
                 ]);
             }
 
@@ -141,10 +158,11 @@ class SaleController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->withErrors([
-                'msg' => 'Gagal menyimpan transaksi: ' . $e->getMessage()
+                'msg' => $e->getMessage()
             ]);
         }
     }
+
 
 
 
