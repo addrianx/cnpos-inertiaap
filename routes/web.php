@@ -49,6 +49,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/stock-loan', [StockLoanController::class, 'index'])->name('stockloan.index');
     Route::get('/stock-loan/create', [StockLoanController::class, 'create'])->name('stockloan.create');
     Route::post('/stock-loan/store', [StockLoanController::class, 'store'])->name('stockloan.store');
+    Route::post('/stock-loan/{loan}/approve', [StockLoanController::class, 'approve'])->name('stock-loan.approve');
+    Route::post('/stock-loan/{loan}/reject', [StockLoanController::class, 'reject'])->name('stock-loan.reject');
+
     // user route
     Route::resource('users', UserController::class);
     // STOCK TRANSFER ROUTE

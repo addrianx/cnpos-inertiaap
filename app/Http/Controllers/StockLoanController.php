@@ -3,17 +3,26 @@
 // app/Http/Controllers/StockLoanController.php
 namespace App\Http\Controllers;
 
+use Illuminate\Support\Facades\DB;
 use App\Models\StockLoan;
 use App\Models\StockLoanItem;
+use App\Models\Stock;
 use App\Models\Product;
 use App\Models\Store;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class StockLoanController extends Controller
 {
     public function index() {
-        $loans = StockLoan::with(['fromStore','toStore','items.product'])->latest()->get();
-        return inertia('StockLoan/Index', compact('loans'));
+        $user = auth()->user();
+        $loans = StockLoan::with(['fromStore', 'toStore', 'items.product'])->latest()->get();
+        $userStore = Store::where('user_id', $user->id)->first();
+
+        return inertia('StockLoan/Index', [
+            'loans' => $loans,
+            'userStoreId' => $userStore ? $userStore->id : null, // kirim ke Inertia
+        ]);
     }
 
     public function create() {
@@ -25,7 +34,7 @@ class StockLoanController extends Controller
     public function store(Request $request) {
         $data = $request->validate([
             'from_store_id' => 'required|exists:stores,id',
-            'to_store_id'   => 'required|exists:stores,id',
+            // hapus validasi to_store_id karena otomatis
             'loan_date'     => 'required|date',
             'notes'         => 'nullable|string',
             'items'         => 'required|array|min:1',
@@ -33,7 +42,24 @@ class StockLoanController extends Controller
             'items.*.quantity'   => 'required|integer|min:1',
         ]);
 
-        $loan = StockLoan::create($data);
+        // inject to_store_id dari user login
+            $user = auth()->user();
+
+            // cari toko milik user yg login
+            $store = Store::where('user_id', $user->id)->first();
+
+            if (! $store) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors(['store' => 'User ini belum memiliki store, tidak bisa membuat peminjaman stok.']);
+            }
+
+        $loan = StockLoan::create([
+            'from_store_id' => $data['from_store_id'],
+            'to_store_id'   => $store->id,
+            'loan_date'     => $data['loan_date'],
+            'notes'         => $data['notes'] ?? null,
+        ]);
 
         foreach ($data['items'] as $item) {
             StockLoanItem::create([
@@ -43,7 +69,61 @@ class StockLoanController extends Controller
             ]);
         }
 
-        return redirect()->route('stock-loans.index')->with('success','Peminjaman stok berhasil dibuat');
+        return redirect()->route('stock-loan.index')->with('success','Peminjaman stok berhasil dibuat');
+    }
+
+
+    public function approve($id)
+    {
+        $loan = StockLoan::with('items.product')->findOrFail($id);
+
+        // pastikan yang approve adalah store tujuan
+        $userStore = Store::where('user_id', Auth::id())->first();
+        if ($loan->to_store_id !== $userStore->id) {
+            abort(403);
+        }
+
+        // kurangi stok di store pemberi
+        foreach ($loan->items as $item) {
+            Stock::create([
+                'product_id' => $item->product_id,
+                'store_id'   => $loan->from_store_id,
+                'type'       => 'out',
+                'quantity'   => $item->quantity,
+                'reference'  => 'Stock Loan #' . $loan->id,
+                'note'       => 'Pinjaman ke ' . $loan->toStore->name,
+            ]);
+
+            // tambahkan stok di store penerima
+            Stock::create([
+                'product_id' => $item->product_id,
+                'store_id'   => $loan->to_store_id,
+                'type'       => 'in',
+                'quantity'   => $item->quantity,
+                'reference'  => 'Stock Loan #' . $loan->id,
+                'note'       => 'Diterima dari ' . $loan->fromStore->name,
+            ]);
+        }
+
+        $loan->status = 'returned';
+        $loan->save();
+
+        return redirect()->back()->with('success', 'Pinjaman stok diterima.');
+    }
+
+    public function reject($id)
+    {
+        $loan = StockLoan::findOrFail($id);
+
+        $userStore = Store::where('user_id', Auth::id())->first();
+        if ($loan->to_store_id !== $userStore->id) {
+            abort(403);
+        }
+
+        $loan->status = 'cancelled';
+        $loan->save();
+
+        return redirect()->back()->with('success', 'Pinjaman stok ditolak.');
     }
 
     public function show(StockLoan $stockLoan) {

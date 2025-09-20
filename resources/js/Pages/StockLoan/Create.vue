@@ -7,15 +7,11 @@
       <!-- Produk -->
       <div class="mb-3">
         <label class="form-label">Produk</label>
-        <select v-model="form.product_id" class="form-select">
-          <option disabled value="">-- Pilih Produk --</option>
-          <option
-            v-for="p in products"
-            :key="p.id"
-            :value="p.id"
-          >
-            {{ p.name }} (Stok tersedia: {{ p.stock }})
-          </option>
+        <select v-model="form.items[0].product_id" class="form-select">
+        <option disabled value="">-- Pilih Produk --</option>
+        <option v-for="p in products" :key="p.id" :value="p.id">
+            {{ p.name }} (Stok: {{ p.stock }})
+        </option>
         </select>
       </div>
 
@@ -32,12 +28,10 @@
       <div class="mb-3">
         <label class="form-label">Jumlah Barang</label>
         <input
-          v-model="form.quantity"
-          type="number"
-          class="form-control"
-          min="1"
-          :max="selectedProduct?.stock || 1"
-          @input="validateQuantity"
+        v-model="form.items[0].quantity"
+        type="number"
+        min="1"
+        class="form-control"
         />
         <small v-if="form.product_id" class="text-muted">
           Maksimal: {{ selectedProduct?.stock }} item

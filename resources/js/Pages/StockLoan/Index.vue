@@ -34,53 +34,60 @@
 
     <div class="table-responsive">
       <table class="table table-bordered table-striped text-nowrap">
-        <thead class="table-dark">
-          <tr>
-            <th>#</th>
-            <th>Produk</th>
-            <th>Jumlah</th>
-            <th>Toko Peminjam</th>
-            <th>Toko Pemberi</th>
-            <th>Catatan</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          <!-- Jika kosong -->
-          <tr v-if="paginatedLoans.length === 0">
-            <td colspan="7" class="text-center text-muted py-4">
-              Belum ada pinjaman stok.
-            </td>
-          </tr>
+      <thead class="table-dark">
+        <tr>
+          <th>#</th>
+          <th>Produk</th>
+          <th>Jumlah</th>
+          <th>Toko Peminjam</th>
+          <th>Toko Pemberi</th>
+          <th>Catatan</th>
+          <th>Status</th>
+          <th>Aksi</th> <!-- kolom aksi baru -->
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-if="paginatedLoans.length === 0">
+          <td colspan="8" class="text-center text-muted py-4">
+            Belum ada pinjaman stok.
+          </td>
+        </tr>
 
-          <!-- Jika ada data -->
-          <tr v-else v-for="(loan, i) in paginatedLoans" :key="loan.id">
-            <td>{{ (currentPage - 1) * perPage + i + 1 }}</td>
-            <td>
-              <ul class="mb-0 ps-3">
-                <li v-for="item in loan.items" :key="item.id">
-                  {{ item.product.name }} ({{ item.quantity }})
-                </li>
-              </ul>
-            </td>
-            <td>{{ loan.items.reduce((sum, it) => sum + it.quantity, 0) }}</td>
-            <td>{{ loan.from_store ? loan.from_store.name : '-' }}</td>
-            <td>{{ loan.to_store ? loan.to_store.name : '-' }}</td>
-            <td>{{ loan.notes }}</td>
-            <td>
-              <span
-                class="badge"
-                :class="{
-                  'bg-warning': loan.status === 'pending',
-                  'bg-success': loan.status === 'returned',
-                  'bg-danger': loan.status === 'cancelled'
-                }"
-              >
-                {{ loan.status }}
-              </span>
-            </td>
-          </tr>
-        </tbody>
+        <tr v-else v-for="(loan, i) in paginatedLoans" :key="loan.id">
+          <td>{{ (currentPage - 1) * perPage + i + 1 }}</td>
+          <td>
+            <ul class="mb-0 ps-3">
+              <li v-for="item in loan.items" :key="item.id">
+                {{ item.product.name }} ({{ item.quantity }})
+              </li>
+            </ul>
+          </td>
+          <td>{{ loan.items.reduce((sum, it) => sum + it.quantity, 0) }}</td>
+          <td>{{ loan.from_store ? loan.from_store.name : '-' }}</td>
+          <td>{{ loan.to_store ? loan.to_store.name : '-' }}</td>
+          <td>{{ loan.notes }}</td>
+          <td>
+            <span
+              class="badge"
+              :class="{
+                'bg-warning': loan.status === 'pending',
+                'bg-success': loan.status === 'approved',
+                'bg-danger': loan.status === 'rejected'
+              }"
+            >
+              {{ loan.status }}
+            </span>
+          </td>
+          <td>
+            <template v-if="loan.status === 'pending' && loan.to_store?.id === userStoreId">
+              <button class="btn btn-success btn-sm me-1" @click="approveLoan(loan.id)">Terima</button>
+              <button class="btn btn-danger btn-sm" @click="rejectLoan(loan.id)">Tolak</button>
+            </template>
+            <template v-else>-</template>
+          </td>
+
+        </tr>
+      </tbody>
       </table>
     </div>
 
@@ -126,11 +133,15 @@
 </template>
 
 <script setup>
-import { Link } from '@inertiajs/vue3'
+import { Link, router as Inertia } from '@inertiajs/vue3' // ✅ import router
 import { ref, computed, watch } from 'vue'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import Swal from 'sweetalert2' // ✅ ini yang dibutuhkan
 
-const props = defineProps({ loans: Array }) // array pinjam stok
+const props = defineProps({
+  loans: Array,
+  userStoreId: Number
+})
 
 // state
 const currentPage = ref(1)
@@ -174,6 +185,39 @@ const visiblePages = computed(() => {
   for (let i = start; i <= end; i++) pages.push(i)
   return pages
 })
+
+
+const userStoreId = props.userStoreId // id toko user login
+const approveLoan = (loanId) => {
+  Swal.fire({
+    title: 'Konfirmasi Terima',
+    text: 'Apakah yakin ingin menerima pinjaman stok ini?',
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonText: 'Ya, Terima',
+    cancelButtonText: 'Batal'
+  }).then((result) => {
+    if (result.isConfirmed) {
+      Inertia.post(`/stock-loan/${loanId}/approve`)
+    }
+  })
+}
+
+const rejectLoan = (loanId) => {
+  Swal.fire({
+    title: 'Konfirmasi Tolak',
+    text: 'Apakah yakin ingin menolak pinjaman stok ini?',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: 'Ya, Tolak',
+    cancelButtonText: 'Batal'
+  }).then((result) => {
+    if (result.isConfirmed) {
+      Inertia.post(`/stock-loan/${loanId}/reject`)
+    }
+  })
+}
+
 
 // navigasi
 const goToPage = (page) => { if (page >= 1 && page <= totalPages.value) currentPage.value = page }
