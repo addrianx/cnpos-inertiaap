@@ -11,7 +11,9 @@
             <label class="form-label">Produk</label>
             <select v-model="item.product_id" class="form-select">
               <option disabled value="">-- Pilih Produk --</option>
-              <option v-for="p in products" :key="p.id" :value="p.id">{{ p.name }}</option>
+              <option v-for="p in props.products" :key="p.id" :value="p.id">
+                {{ p.name }} (Stok: {{ p.stock ?? 0 }})
+              </option>
             </select>
           </div>
 
@@ -27,9 +29,9 @@
               :max="props.products.find(p => p.id === item.product_id)?.stock ?? 1"
             />
 
-              <span class="input-group-text bg-light">
-                Stok: {{ props.products.find(p => p.id === item.product_id)?.stock ?? 0 }}
-              </span>
+            <span class="input-group-text bg-light">
+              Stok: {{ props.products.find(p => p.id === item.product_id)?.stock ?? 0 }}
+            </span>
             </div>
           </div>
 
@@ -150,9 +152,8 @@ const submit = () => {
         icon: "warning",
         title: "Stok Tidak Cukup",
         text: `Stok untuk ${product.name} hanya ${product.stock}, tidak bisa jual ${item.quantity}.`,
-        confirmButtonColor: "#d33",
       });
-      return; // hentikan submit
+      return;
     }
   }
 
