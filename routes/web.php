@@ -52,7 +52,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/stock-loan/store', [StockLoanController::class, 'store'])->name('stockloan.store');
     Route::post('/stock-loan/{loan}/approve', [StockLoanController::class, 'approve'])->name('stock-loan.approve');
     Route::post('/stock-loan/{loan}/reject', [StockLoanController::class, 'reject'])->name('stock-loan.reject');
-    Route::post('/stock-loan/{loan}/return', [StockLoanController::class, 'return'])->name('stock-loan.return');
+    Route::post('/stock-loan/{loan}/return', [StockLoanController::class, 'returnLoan'])->name('stock-loan.return');
 
     // user route
     Route::resource('users', UserController::class);
