@@ -75,6 +75,7 @@
         :class="{
           'bg-warning': loan.status === 'pending',
           'bg-success': loan.status === 'approved',
+          'bg-dark': loan.status === 'returned',
           'bg-danger': loan.status === 'rejected'
         }"
       >
