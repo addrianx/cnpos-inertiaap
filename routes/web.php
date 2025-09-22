@@ -23,7 +23,6 @@ Route::get('/', function () {
     if (auth()->check()) {
         return redirect()->route('dashboard');
     }
-
     // Kalau belum login, arahkan ke halaman login
     return redirect()->route('login');
 });
