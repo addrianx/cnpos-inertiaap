@@ -12,7 +12,7 @@ return new class extends Migration {
             $table->foreignId('from_store_id')->constrained('stores')->cascadeOnDelete();
             $table->foreignId('to_store_id')->constrained('stores')->cascadeOnDelete();
             $table->date('loan_date');
-            $table->enum('status', ['pending','returned','cancelled'])->default('pending');
+            $table->enum('status', ['pending','approved','returned','cancelled'])->default('pending');
             $table->text('notes')->nullable();
             $table->timestamps();
         });

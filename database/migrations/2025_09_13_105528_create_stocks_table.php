@@ -18,7 +18,15 @@ return new class extends Migration
             $table->integer('quantity');
             $table->string('reference')->nullable(); // kode transaksi / faktur
             $table->string('note')->nullable();
+
+            // 🔥 tambahan untuk memisahkan sumber stok
+            $table->string('source_type')->nullable(); // contoh: 'purchase', 'loan', 'return'
+            $table->unsignedBigInteger('source_id')->nullable(); // id referensi dari tabel terkait
+
             $table->timestamps();
+
+            // index biar query laporan lebih cepat
+            $table->index(['source_type', 'source_id']);
         });
     }
 

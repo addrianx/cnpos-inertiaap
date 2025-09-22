@@ -73,27 +73,27 @@ class StockLoanController extends Controller
         ]);
     }
 
-public function getProducts(Store $store)
-{
-    $products = Product::select(
-        'products.id',
-        'products.name',
-        'products.sku',
-        'products.price',
-        'products.store_id',
-        DB::raw("
-            COALESCE(SUM(CASE WHEN stocks.type = 'in' THEN stocks.quantity END), 0)
-            - COALESCE(SUM(CASE WHEN stocks.type = 'out' THEN stocks.quantity END), 0)
-            as stock
-        ")
-    )
-    ->leftJoin('stocks', 'products.id', '=', 'stocks.product_id')
-    ->where('products.store_id', $store->id)
-    ->groupBy('products.id', 'products.name', 'products.sku', 'products.price', 'products.store_id')
-    ->get();
+    public function getProducts(Store $store)
+    {
+        $products = Product::select(
+            'products.id',
+            'products.name',
+            'products.sku',
+            'products.price',
+            'products.store_id',
+            DB::raw("
+                COALESCE(SUM(CASE WHEN stocks.type = 'in' THEN stocks.quantity END), 0)
+                - COALESCE(SUM(CASE WHEN stocks.type = 'out' THEN stocks.quantity END), 0)
+                as stock
+            ")
+        )
+        ->leftJoin('stocks', 'products.id', '=', 'stocks.product_id')
+        ->where('products.store_id', $store->id)
+        ->groupBy('products.id', 'products.name', 'products.sku', 'products.price', 'products.store_id')
+        ->get();
 
-    return response()->json($products);
-}
+        return response()->json($products);
+    }
 
 
     public function store(Request $request)
@@ -155,39 +155,62 @@ public function getProducts(Store $store)
     {
         $loan = StockLoan::with('items.product')->findOrFail($id);
 
-        // pastikan yang approve adalah store tujuan
         $userStore = Store::where('user_id', Auth::id())->first();
-        if ($loan->to_store_id !== $userStore->id) {
-            abort(403);
+        if ($loan->from_store_id !== $userStore->id) {
+            abort(403, 'Anda tidak berhak approve pinjaman ini.');
         }
 
-        // kurangi stok di store pemberi
         foreach ($loan->items as $item) {
+            $product = $item->product;
+
+            // ✅ Cek apakah produk sudah ada di toko penerima
+            $targetProduct = Product::where('sku', $product->sku)
+                ->where('store_id', $loan->to_store_id)
+                ->first();
+
+            if (! $targetProduct) {
+                // 🔥 Jika belum ada, buat duplikasi produk di toko penerima
+                $targetProduct = Product::create([
+                    'sku'         => $product->sku,
+                    'name'        => $product->name,
+                    'cost'        => $product->cost,
+                    'price'       => $product->price,
+                    'discount'    => $product->discount,
+                    'store_id'    => $loan->to_store_id,
+                    'category_id' => $product->category_id,
+                ]);
+            }
+
+            // stok keluar dari store pemberi
             Stock::create([
-                'product_id' => $item->product_id,
-                'store_id'   => $loan->from_store_id,
-                'type'       => 'out',
-                'quantity'   => $item->quantity,
-                'reference'  => 'Stock Loan #' . $loan->id,
-                'note'       => 'Pinjaman ke ' . $loan->toStore->name,
+                'product_id'  => $item->product_id,
+                'store_id'    => $loan->from_store_id,
+                'type'        => 'out',
+                'quantity'    => $item->quantity,
+                'reference'   => 'Stock Loan #' . $loan->id,
+                'note'        => 'Dipinjam oleh ' . $loan->toStore->name,
+                'source_type' => 'loan',
+                'source_id'   => $loan->id,
             ]);
 
-            // tambahkan stok di store penerima
             Stock::create([
-                'product_id' => $item->product_id,
-                'store_id'   => $loan->to_store_id,
-                'type'       => 'in',
-                'quantity'   => $item->quantity,
-                'reference'  => 'Stock Loan #' . $loan->id,
-                'note'       => 'Diterima dari ' . $loan->fromStore->name,
+                'product_id'  => $targetProduct->id,
+                'store_id'    => $loan->to_store_id,
+                'type'        => 'in',
+                'quantity'    => $item->quantity,
+                'reference'   => 'Stock Loan #' . $loan->id,
+                'note'        => 'Diterima dari ' . $loan->fromStore->name,
+                'source_type' => 'loan',
+                'source_id'   => $loan->id,
             ]);
         }
 
-        $loan->status = 'returned';
+        $loan->status = 'approved'; // ⚡️ jangan pakai 'returned'
         $loan->save();
 
-        return redirect()->back()->with('success', 'Pinjaman stok diterima.');
+        return redirect()->back()->with('success', 'Pinjaman stok berhasil diterima.');
     }
+
 
 
     public function reject($id)
@@ -203,6 +226,64 @@ public function getProducts(Store $store)
         $loan->save();
 
         return redirect()->back()->with('success', 'Pinjaman stok ditolak.');
+    }
+
+    public function returnLoan($id)
+    {
+        $loan = StockLoan::with('items.product')->findOrFail($id);
+
+        // ✅ Validasi: hanya toko peminjam yang bisa kembalikan
+        $userStore = Store::where('user_id', Auth::id())->first();
+        if ($loan->to_store_id !== $userStore->id) {
+            abort(403, 'Anda tidak berhak mengembalikan pinjaman ini.');
+        }
+
+        // 🚨 Cegah pengembalian dobel
+        if ($loan->status === 'returned') {
+            return back()->with('error', 'Pinjaman ini sudah dikembalikan sebelumnya.');
+        }
+
+        foreach ($loan->items as $item) {
+            // Produk di toko peminjam
+            $borrowedProduct = Product::where('sku', $item->product->sku)
+                ->where('store_id', $loan->to_store_id)
+                ->first();
+
+            // Produk di toko pemberi
+            $originalProduct = $item->product; // sudah sesuai dengan from_store
+
+            if (! $borrowedProduct || ! $originalProduct) {
+                return back()->with('error', 'Produk tidak ditemukan untuk proses pengembalian.');
+            }
+
+            // 1️⃣ Stok keluar dari toko peminjam
+            Stock::create([
+                'product_id'  => $borrowedProduct->id,
+                'type'        => 'out',
+                'quantity'    => $item->quantity,
+                'reference'   => 'Return Loan #' . $loan->id,
+                'note'        => 'Pengembalian ke ' . $loan->fromStore->name,
+                'source_type' => 'return_out',
+                'source_id'   => $loan->id,
+            ]);
+
+            // 2️⃣ Stok masuk ke toko pemberi
+            Stock::create([
+                'product_id'  => $originalProduct->id,
+                'type'        => 'in',
+                'quantity'    => $item->quantity,
+                'reference'   => 'Return Loan #' . $loan->id,
+                'note'        => 'Pengembalian dari ' . $loan->toStore->name,
+                'source_type' => 'return_in',
+                'source_id'   => $loan->id,
+            ]);
+        }
+
+        // Update status loan
+        $loan->status = 'returned';
+        $loan->save();
+
+        return redirect()->back()->with('success', 'Pinjaman berhasil dikembalikan.');
     }
 
 
@@ -235,6 +316,6 @@ public function getProducts(Store $store)
 
     public function destroy(StockLoan $stockLoan) {
         $stockLoan->delete();
-        return redirect()->route('stock-loans.index')->with('success','Peminjaman stok berhasil dihapus');
+        return redirect()->route('stock-loan.index')->with('success','Peminjaman stok berhasil dihapus');
     }
 }
