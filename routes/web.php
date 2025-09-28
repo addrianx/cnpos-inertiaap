@@ -5,6 +5,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 
 use App\Http\Controllers\Auth\RegisteredUserController;
+use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\StockController;
 use App\Http\Controllers\StockLoanController;
@@ -18,11 +19,14 @@ use App\Http\Controllers\UserController;
 
 use Inertia\Inertia;
 
+Route::get('/', [AuthenticatedSessionController::class, 'create'])->name('login');
+
 Route::get('/', function () {
     // Kalau user sudah login arahkan ke dashboard
     if (auth()->check()) {
         return redirect()->route('dashboard');
     }
+
     // Kalau belum login, arahkan ke halaman login
     return redirect()->route('login');
 });

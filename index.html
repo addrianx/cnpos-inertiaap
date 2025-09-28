@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Loading...</title>
+  <style>
+    :root {
+      --bg-gradient: linear-gradient(135deg, #141e30, #243b55);
+      --primary: #4cafef;
+      --secondary: rgba(255,255,255,0.2);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: var(--bg-gradient);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      color: #fff;
+      overflow: hidden;
+    }
+
+    .container {
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      animation: fadeUp 0.8s ease forwards;
+    }
+
+    /* Loader animasi */
+    .loader {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      border: 6px solid var(--secondary);
+      border-top-color: var(--primary);
+      animation: spin 1s linear infinite;
+      box-shadow: 0 0 20px rgba(76, 175, 239, 0.6);
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg);}
+      100% { transform: rotate(360deg);}
+    }
+
+    /* Teks animasi */
+    .text {
+      margin-top: 20px;
+      font-size: 1.25rem;
+      letter-spacing: 1px;
+      opacity: 0;
+      animation: fadeIn 2s ease forwards, pulse 2s infinite;
+    }
+
+    @keyframes fadeIn {
+      to { opacity: 1; }
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+
+    /* Animasi container */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Responsif */
+    @media (max-width: 480px) {
+      .loader {
+        width: 60px;
+        height: 60px;
+        border-width: 5px;
+      }
+      .text {
+        font-size: 1rem;
+      }
+    }
+  </style>
+  <script>
+    // Auto redirect setelah 3 detik
+    setTimeout(() => {
+      window.location.href = "/public"; // ganti sesuai kebutuhan, misal "/login"
+    }, 3000);
+  </script>
+</head>
+<body>
+  <div class="container">
+    <div class="loader"></div>
+    <div class="text">Loading Application...</div>
+  </div>
+</body>
+</html>
