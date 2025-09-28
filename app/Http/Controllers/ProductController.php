@@ -100,6 +100,7 @@ class ProductController extends Controller
     // 📌 Update produk
     public function update(Request $request, Product $product)
     {
+
         $request->validate([
             'sku'         => 'required|unique:products,sku,' . $product->id,
             'name'        => 'required',
@@ -127,6 +128,7 @@ class ProductController extends Controller
         ]);
 
         return redirect()->route('products.index')->with('success', 'Produk berhasil diperbarui');
+        
     }
 
 

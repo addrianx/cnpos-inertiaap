@@ -1,8 +1,10 @@
 <template>
   <AppLayout>
     <div class="d-flex justify-content-between align-items-center mb-3">
-      <h2>Laporan Pembelian Stok Produk</h2>
-      <button class="btn btn-primary" @click="printReport">Cetak</button>
+      <h2>LAPORAN STOK PRODUK</h2>
+          <button class="btn btn-secondary mb-3" @click="togglePrintMode">
+            Print
+          </button>
     </div>
 
     <!-- Tabel laporan stok & modal -->
@@ -10,24 +12,20 @@
       <table class="table table-bordered table-striped align-middle text-nowrap">
         <thead class="table-dark">
           <tr>
-            <th>Kode (SKU)</th>
-            <th>Nama Produk</th>
-            <th>Harga Modal (Rp)</th>
-            <th>Total Stok</th>
-            <th>Total Modal (Rp)</th>
+            <th>Kode</th>
+            <th>Barang</th>
+            <th>Modal</th>
+            <th>Stok</th>
+            <th>Total</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="product in products" :key="product.id">
+          <tr v-for="product in displayedProducts" :key="product.id">
             <td>{{ product.sku }}</td>
             <td>{{ product.name }}</td>
             <td>{{ Number(product.cost).toLocaleString() }}</td>
-            <td>
-              {{ getTotalStock(product) }}
-            </td>
-            <td>
-              {{ (product.cost * getTotalStock(product)).toLocaleString() }}
-            </td>
+            <td>{{ getTotalStock(product) }}</td>
+            <td>{{ (product.cost * getTotalStock(product)).toLocaleString() }}</td>
           </tr>
         </tbody>
 
@@ -37,8 +35,38 @@
             <td>{{ totalModal.toLocaleString() }}</td>
           </tr>
         </tfoot>
-        
       </table>
+
+      <nav v-if="!isPrintMode">
+        <ul class="pagination justify-content-center">
+
+        <li class="page-item" :class="{ disabled: currentPage === 1 }">
+          <a class="page-link" href="#" @click.prevent="goToPage(currentPage - 1)">«</a>
+        </li>
+
+        <li
+          v-for="(page, idx) in pagesToShow"
+          :key="idx"
+          class="page-item"
+          :class="{ active: page === currentPage, disabled: page === '...' }"
+        >
+          <span v-if="page === '...'" class="page-link">…</span>
+          <a
+            v-else
+            class="page-link"
+            href="#"
+            @click.prevent="goToPage(page)"
+          >{{ page }}</a>
+        </li>
+
+        <li class="page-item" :class="{ disabled: currentPage === totalPages }">
+          <a class="page-link" href="#" @click.prevent="goToPage(currentPage + 1)">»</a>
+        </li>
+
+        </ul>
+      </nav>
+
+
     </div>
 
     <!-- Informasi Keuangan Tambahan -->
@@ -131,16 +159,96 @@
 
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue'
-import { defineProps, computed } from 'vue'
+import { defineProps, computed, ref, nextTick } from 'vue'
 
 const props = defineProps({
   products: Array
 })
 
-// Hitung stok in/out
+// Pagination state
+const currentPage = ref(1)
+const perPage = ref(20)
+const isPrintMode = ref(false) // default: aplikasi mode biasa
+
+// Hitung total halaman (paling kecil 1)
+const totalPages = computed(() => {
+  return Math.max(1, Math.ceil((props.products?.length || 0) / perPage.value))
+})
+
+// Data yang ditampilkan: paginasi saat normal, semua saat print
+const displayedProducts = computed(() => {
+  if (isPrintMode.value) {
+    return props.products || []
+  }
+  const start = (currentPage.value - 1) * perPage.value
+  return (props.products || []).slice(start, start + perPage.value)
+})
+
+// Truncated pages (optional, tidak dipakai di template saat ini,
+// tapi berguna kalau ingin tampilkan beberapa nomor di pagination)
+const pagesToShow = computed(() => {
+  const tp = totalPages.value
+  const cp = currentPage.value
+  const pages = []
+
+  if (tp <= 7) {
+    // kalau total halaman sedikit, tampilkan semua
+    for (let i = 1; i <= tp; i++) {
+      pages.push(i)
+    }
+  } else {
+    pages.push(1) // halaman pertama selalu ada
+
+    if (cp > 3) {
+      pages.push('...') // ellipsis sebelum currentPage
+    }
+
+    // halaman sekitar currentPage (max 2 kiri, 2 kanan)
+    for (let i = cp - 2; i <= cp + 2; i++) {
+      if (i > 1 && i < tp) {
+        pages.push(i)
+      }
+    }
+
+    if (cp < tp - 2) {
+      pages.push('...') // ellipsis setelah currentPage
+    }
+
+    pages.push(tp) // halaman terakhir selalu ada
+  }
+
+  return pages
+})
+
+
+// fungsi ganti page (dipakai di template)
+function goToPage(page) {
+  if (!page || isNaN(page)) return
+  const p = Math.min(Math.max(1, Number(page)), totalPages.value)
+  currentPage.value = p
+}
+
+// Fungsi print: tunggu render ulang DOM dulu agar semua baris tampil
+async function togglePrintMode() {
+  // set ke print mode -> tampilkan semua produk
+  isPrintMode.value = true
+
+  // tunggu Vue render DOM (agar displayedProducts = semua produk)
+  await nextTick()
+
+  // panggil print (browser akan memproses page-break dsb)
+  window.print()
+
+  // kembalikan ke mode normal
+  // (setelah dialog print ditutup, code ini akan dieksekusi)
+  isPrintMode.value = false
+}
+
+// ================== FUNGSI PENDUKUNG ==================
+
 // Hitung total stok tersisa
 function getTotalStock(product) {
-  return product.stocks.reduce((total, s) => {
+  return (product.stocks || []).reduce((total, s) => {
     if (s.type === 'in') return total + s.quantity
     if (s.type === 'out') return total - s.quantity
     if (s.type === 'adjustment') return total + s.quantity
@@ -148,23 +256,23 @@ function getTotalStock(product) {
   }, 0)
 }
 
-// Hitung total keluar (tanpa batas waktu)
+// Hitung total keluar
 function getTotalOut(product) {
-  return product.stocks
+  return (product.stocks || [])
     .filter(s => s.type === 'out')
     .reduce((sum, s) => sum + s.quantity, 0)
 }
 
 // ---- Informasi Keuangan ----
 const totalModal = computed(() => {
-  return props.products.reduce((sum, product) => {
-    return sum + getTotalStock(product) * product.cost
+  return (props.products || []).reduce((sum, product) => {
+    return sum + getTotalStock(product) * (product.cost || 0)
   }, 0)
 })
 
 const totalOmzet = computed(() => {
-  return props.products.reduce((sum, product) => {
-    return sum + getTotalStock(product) * product.price
+  return (props.products || []).reduce((sum, product) => {
+    return sum + getTotalStock(product) * (product.price || 0)
   }, 0)
 })
 
@@ -175,7 +283,7 @@ const totalLaba = computed(() => {
 const avgMargin = computed(() => {
   let marginSum = 0
   let count = 0
-  props.products.forEach(product => {
+  ;(props.products || []).forEach(product => {
     if (product.price > 0 && product.cost > 0) {
       marginSum += ((product.price - product.cost) / product.cost) * 100
       count++
@@ -184,64 +292,68 @@ const avgMargin = computed(() => {
   return count > 0 ? marginSum / count : 0
 })
 
-// Hitung total keluar dalam 30 hari terakhir
+// ================== ANALISA STOK ==================
+
 function getTotalOutLast30Days(product) {
   const cutoff = new Date()
   cutoff.setDate(cutoff.getDate() - 30)
-
-  return product.stocks
+  return (product.stocks || [])
     .filter(s => s.type === 'out' && new Date(s.created_at) >= cutoff)
     .reduce((sum, s) => sum + s.quantity, 0)
 }
 
-// Hitung total keluar dalam 60 hari terakhir
 function getTotalOutLast60Days(product) {
   const cutoff = new Date()
   cutoff.setDate(cutoff.getDate() - 60)
-
-  return product.stocks
+  return (product.stocks || [])
     .filter(s => s.type === 'out' && new Date(s.created_at) >= cutoff)
     .reduce((sum, s) => sum + s.quantity, 0)
 }
 
-// Fast Moving: produk dengan penjualan > 3 dalam 30 hari terakhir
 const topFastMoving = computed(() => {
-  return props.products
-    .map(p => ({
-      ...p,
-      totalOut: getTotalOutLast30Days(p)
-    }))
+  return (props.products || [])
+    .map(p => ({ ...p, totalOut: getTotalOutLast30Days(p) }))
     .filter(p => p.totalOut > 3)
     .sort((a, b) => b.totalOut - a.totalOut)
     .slice(0, 10)
 })
 
-// Slow Moving: produk dengan penjualan kecil (0 < qty ≤ 3) dalam 60 hari terakhir
 const topSlowMoving = computed(() => {
-  return props.products
-    .map(p => ({
-      ...p,
-      totalOut: getTotalOutLast60Days(p)
-    }))
+  return (props.products || [])
+    .map(p => ({ ...p, totalOut: getTotalOutLast60Days(p) }))
     .filter(p => p.totalOut > 0 && p.totalOut <= 3)
     .sort((a, b) => a.totalOut - b.totalOut)
 })
 
-// Dead Stock: stok masih ada, tapi tidak ada penjualan sama sekali
 const deadStocks = computed(() => {
-  return props.products
-    .map(p => ({
-      ...p,
-      totalOut: getTotalOut(p),
-      totalStock: getTotalStock(p)
-    }))
+  return (props.products || [])
+    .map(p => ({ ...p, totalOut: getTotalOut(p), totalStock: getTotalStock(p) }))
     .filter(p => p.totalStock > 0 && p.totalOut === 0)
 })
-
-
-// Cetak laporan
-const printReport = () => {
-  window.print()
-}
 </script>
 
+
+
+<style>
+@media print {
+  /* Hilangkan tombol, navigasi, card tambahan */
+  button, .pagination, .card, .d-flex.justify-content-between {
+    display: none !important;
+  }
+
+  /* Supaya tabel penuh halaman */
+  table {
+    page-break-inside: auto;
+  }
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+  thead {
+    display: table-header-group; /* header ulang di setiap halaman */
+  }
+  tfoot {
+    display: table-footer-group; /* footer ulang di setiap halaman */
+  }
+}
+</style>

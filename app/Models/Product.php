@@ -19,16 +19,20 @@ class Product extends Model
         'category_id',
     ];
 
+    protected $appends = ['stock'];
+
     public function stocks()
     {
         return $this->hasMany(Stock::class);
     }
 
-    public function getCurrentStockAttribute()
+    public function getStockAttribute()
     {
-        $in  = $this->stocks()->where('type', 'in')->sum('quantity');
-        $out = $this->stocks()->where('type', 'out')->sum('quantity');
-        return $in - $out;
+        $in         = $this->stocks()->where('type', 'in')->sum('quantity');
+        $out        = $this->stocks()->where('type', 'out')->sum('quantity');
+        $adjustment = $this->stocks()->where('type', 'adjustment')->sum('quantity');
+
+        return $in + $adjustment - $out;
     }
     
     public function store()

@@ -2,13 +2,13 @@
   <AppLayout>
     <div class="d-flex justify-content-between align-items-center mb-3">
       <h2>Daftar Stok</h2>
-      <Link href="/stock/adjust" class="btn btn-primary">+ Penyesuaian Stok</Link>
+      <Link href="/stock/adjust" class="btn btn-primary">Tambah Stok</Link>
     </div>
 
     <!-- 🔍 Search & Per Page -->
     <div class="row mb-2 g-2">
       <!-- Filter -->
-      <div class="col-12 col-md-auto">
+      <!-- <div class="col-12 col-md-auto">
         <div class="d-flex align-items-center">
           <label class="me-2">Tampilkan</label>
           <select v-model.number="perPage" class="form-select w-auto">
@@ -19,7 +19,7 @@
           </select>
           <span class="ms-2">item per halaman</span>
         </div>
-      </div>
+      </div> -->
 
       <!-- Search -->
       <div class="col-12 col-md">
@@ -118,7 +118,7 @@ const props = defineProps({ stocks: Array })
 
 // state
 const currentPage = ref(1)
-const perPage = ref(10)
+const perPage = ref(20)
 const searchInput = ref('')   // raw input
 const search = ref('')        // actual search with debounce
 const loading = ref(false)

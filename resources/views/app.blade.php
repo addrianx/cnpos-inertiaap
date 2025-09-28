@@ -14,6 +14,7 @@
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
     <!-- PWA manifest -->
     <link rel="manifest" href="/manifest.json">
@@ -21,12 +22,12 @@
     <!-- Android: status bar & full screen -->
     <meta name="theme-color" content="#0d6efd">
     <meta name="mobile-web-app-capable" content="yes">
-    <meta name="application-name" content="{{ config('app.name', 'Laravel') }}">
+    <meta name="application-name" content="{{ config('app.name', 'CNPOS') }}">
 
     <!-- iOS: status bar & full screen -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="{{ config('app.name', 'Laravel') }}">
+    <meta name="apple-mobile-web-app-title" content="{{ config('app.name', 'CNPOS') }}">
     <link rel="apple-touch-icon" href="/images/icons/icon-192x192.png">
 
     <!-- Windows / Microsoft Tiles -->

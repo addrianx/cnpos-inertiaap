@@ -7,50 +7,33 @@
 
             <div class="mt-2 mt-md-0">
                 <Link href="/products/create" class="btn btn-primary me-2 mb-2 mb-md-0">
-                + Tambah Produk
+                   Tambah
                 </Link>
                 <button class="btn btn-success me-2 mb-2 mb-md-0" @click="openManageCategory">
-                    Manage Kategori
+                    Atur Kategori
                 </button>
             </div>
         </div>
 
         <!-- Filter & Search -->
         <div class="row mb-3 g-2">
-            <!-- Tampilkan per halaman -->
-            <div class="col-12 col-md-auto">
-                <div class="d-flex align-items-center">
-                    <label class="me-2">Tampilkan</label>
-                    <select v-model="perPage" class="form-select w-auto">
-                        <option :value="10">10</option>
-                        <option :value="20">20</option>
-                        <option :value="50">50</option>
-                    </select>
-                    <span class="ms-2">data per halaman</span>
-                </div>
-            </div>
-
-            <!-- Search -->
-            <div class="col-12 col-md">
-                <input type="text" v-model="searchQuery" placeholder="Cari produk..." class="form-control w-100" />
-            </div>
-
-            <!-- Filter Kategori + Quick Add -->
-            <div class="col-12 col-md-auto">
-                <div class="d-flex align-items-center">
-                    <label class="me-2">Kategori</label>
-                    <select v-model="selectedCategory" class="form-select w-auto">
-                        <option value="">Semua</option>
-                        <option v-for="cat in categories" :key="cat.id" :value="cat.id">
-                            {{ cat.name }}
-                        </option>
-                    </select>
-                    <button class="btn btn-sm btn-outline-success ms-2" @click="addCategory">
-                        + Kategori
-                    </button>
-                </div>
+            <!-- Search + Filter kategori -->
+            <div class="col-12 col-md d-flex gap-2">
+                <input 
+                    type="text" 
+                    v-model="searchQuery" 
+                    placeholder="Cari produk..." 
+                    class="form-control" 
+                />
+                <select v-model="selectedCategory" class="form-select w-auto">
+                    <option value="">Kategori</option>
+                    <option v-for="cat in sortedCategories" :key="cat.id" :value="cat.id">
+                        {{ cat.name }}
+                    </option>
+                </select>
             </div>
         </div>
+
 
         <!-- Table Produk -->
         <div class="table-responsive">
@@ -85,32 +68,47 @@
                     </tr>
 
                     <tr v-else v-for="product in paginatedProducts" :key="product.id">
-                        <td>{{ product.sku }}</td>
-                        <td>{{ product.name }}</td>
-                        <td>Rp {{ Number(product.cost).toLocaleString() }}</td>
-                        <td>Rp {{ Number(product.price).toLocaleString() }}</td>
-                        <td>{{ product.discount }}%</td>
-                        <td>
-                            {{
-                product.stocks
-                  ? product.stocks.reduce((total, s) => {
-                      if (s.type === 'in') return total + s.quantity
-                      if (s.type === 'out') return total - s.quantity
-                      if (s.type === 'adjustment') return total + s.quantity
-                      return total
-                    }, 0)
-                  : 0
-              }}
-                        </td>
-                        <td>
-                            <Link :href="`/products/${product.id}/edit`" class="btn btn-sm btn-warning me-2">
-                            Edit
-                            </Link>
-                            <button class="btn btn-sm btn-danger" @click="confirmDelete(product.id)">
-                                Hapus
-                            </button>
-                        </td>
+                    <td>{{ product.sku }}</td>
+                    <td>{{ product.name }}</td>
+                    
+                    <!-- Harga Modal -->
+                    <td class="text-center">
+                    <!-- Jika belum ditampilkan -->
+                    <span v-if="!product.showCost" @click="toggleCost(product)" style="cursor:pointer">
+                        <i class="bi bi-eye text-primary"></i>
+                    </span>
+
+                    <!-- Jika sudah ditampilkan -->
+                    <span v-else>
+                        Rp {{ Number(product.cost).toLocaleString() }}
+                        <i class="bi bi-eye-slash text-danger ms-2" style="cursor:pointer" @click="toggleCost(product)"></i>
+                    </span>
+                    </td>
+
+                    <td>Rp {{ Number(product.price).toLocaleString() }}</td>
+                    <td>{{ product.discount }}%</td>
+                    <td>
+                        {{
+                        product.stocks
+                            ? product.stocks.reduce((total, s) => {
+                                if (s.type === 'in') return total + s.quantity
+                                if (s.type === 'out') return total - s.quantity
+                                if (s.type === 'adjustment') return total + s.quantity
+                                return total
+                            }, 0)
+                            : 0
+                        }}
+                    </td>
+                    <td>
+                        <Link :href="`/products/${product.id}/edit`" class="btn btn-sm btn-warning me-2">
+                        Edit
+                        </Link>
+                        <button class="btn btn-sm btn-danger" @click="confirmDelete(product.id)">
+                        Hapus
+                        </button>
+                    </td>
                     </tr>
+
                 </tbody>
             </table>
         </div>
@@ -152,27 +150,37 @@
         <div v-if="showCategoryModal" class="modal fad modal-categories show d-block" tabindex="-1">
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Manage Kategori</h5>
-                        <button type="button" class="btn-close" @click="showCategoryModal = false"></button>
+                <div class="modal-header">
+                    <h5 class="modal-title">Manage Kategori</h5>
+                    <button type="button" class="btn-close" @click="showCategoryModal = false"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Input Tambah Kategori -->
+                    <div class="input-group mb-3">
+                        <input type="text" v-model="newCategoryName" class="form-control"
+                            placeholder="Tambah kategori baru" />
+                        <button class="btn btn-success" @click="saveNewCategory">Simpan</button>
                     </div>
-                    <div class="modal-body">
-                        <ul class="list-group mb-3">
-                            <li v-for="cat in categories" :key="cat.id"
-                                class="list-group-item d-flex justify-content-between align-items-center">
-                                {{ cat.name }}
-                                <button class="btn btn-sm btn-danger" @click="deleteCategory(cat.id)">Hapus</button>
-                            </li>
-                        </ul>
-                        <div class="input-group">
-                            <input type="text" v-model="newCategoryName" class="form-control"
-                                placeholder="Tambah kategori baru" />
-                            <button class="btn btn-success" @click="saveNewCategory">Simpan</button>
-                        </div>
-                    </div>
+
+                    <!-- List Kategori -->
+                    <ul 
+                    class="list-group mb-3 overflow-auto" 
+                    style="max-height: 350px;"
+                    >
+                    <li 
+                        v-for="cat in sortedCategories" 
+                        :key="cat.id"
+                        class="list-group-item d-flex justify-content-between align-items-center"
+                    >
+                        {{ cat.name }}
+                        <button class="btn btn-sm btn-danger" @click="deleteCategory(cat.id)">Hapus</button>
+                    </li>
+                    </ul>
+                </div>
                 </div>
             </div>
         </div>
+
 
     </AppLayout>
 </template>
@@ -202,7 +210,7 @@
     })
 
     // Reactive state
-    const perPage = ref(10)
+    const perPage = ref(20)
     const currentPage = ref(1)
     const searchQuery = ref('')
     const selectedCategory = ref(props.filters.category || '')
@@ -214,16 +222,29 @@
     // COMPUTED PROPERTIES
     // --- FILTER SECTION ---
     const filteredProducts = computed(() => {
-        let list = props.products
-        if (searchQuery.value) {
-            const query = searchQuery.value.toLowerCase()
-            list = list.filter(p => p.name.toLowerCase().includes(query) || p.sku.toLowerCase().includes(query))
-        }
-        if (selectedCategory.value) {
-            list = list.filter(p => p.category_id == selectedCategory.value)
-        }
-        return list
+    let list = props.products
+
+    if (searchQuery.value) {
+        const query = searchQuery.value.toLowerCase()
+
+        list = list.filter(p => {
+        const category = categories.value.find(c => c.id === p.category_id)
+        const categoryName = category ? category.name.toLowerCase() : ''
+        return (
+            p.name.toLowerCase().includes(query) || 
+            p.sku.toLowerCase().includes(query) || 
+            categoryName.includes(query)  // <-- cek kategori
+        )
+        })
+    }
+
+    if (selectedCategory.value) {
+        list = list.filter(p => p.category_id == selectedCategory.value)
+    }
+
+    return list
     })
+
 
     // PAGINATTION SECTION
     const totalPages = computed(() => Math.ceil(filteredProducts.value.length / perPage.value) || 1)
@@ -265,6 +286,13 @@
 
 
     // CATEGORI SECTION CODE
+    // daftar kategori yang sudah diurutkan A-Z
+    const sortedCategories = computed(() => {
+    return [...categories.value].sort((a, b) =>
+        a.name.localeCompare(b.name, 'id', { sensitivity: 'base' })
+    )
+    })
+
     const addCategory = async () => {
         const {
             value: name
@@ -315,19 +343,33 @@
     }
 
     const deleteCategory = async (id) => {
-        try {
-            startLoading()
-            await axios.post(`/categories/${id}`, {
-                _method: 'delete'
-            })
-            categories.value = categories.value.filter(c => c.id !== id)
-            Swal.fire('Berhasil!', 'Kategori berhasil dihapus', 'success')
-        } catch (err) {
-            Swal.fire('Gagal!', err.response ?.data ?.message || 'Terjadi kesalahan', 'error')
-        } finally {
-            stopLoading()
-        }
+        Swal.fire({
+            title: 'Apakah Anda yakin?',
+            text: 'Kategori yang dihapus tidak dapat dikembalikan!',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Ya, hapus!',
+            cancelButtonText: 'Batal',
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                try {
+                    startLoading()
+                    await axios.post(`/categories/${id}`, {
+                        _method: 'delete'
+                    })
+                    categories.value = categories.value.filter(c => c.id !== id)
+                    Swal.fire('Berhasil!', 'Kategori berhasil dihapus', 'success')
+                } catch (err) {
+                    Swal.fire('Gagal!', err.response?.data?.message || 'Terjadi kesalahan', 'error')
+                } finally {
+                    stopLoading()
+                }
+            }
+        })
     }
+
 
     const confirmDelete = (id) => {
         Swal.fire({
@@ -351,6 +393,12 @@
         })
     }
 
+    // toggle harga modal
+    const toggleCost = (product) => {
+    product.showCost = !product.showCost
+    }
+
+
 </script>
 
 <style>
@@ -358,4 +406,7 @@
         background-color: rgba(0, 0, 0, 0.548);
     }
 
+    .btn.btn-sm{
+        padding: 7px 14px;
+    }
 </style>

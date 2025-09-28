@@ -47,18 +47,9 @@ class SaleController extends Controller
                 ->with('error', 'Anda belum memiliki toko, buat toko terlebih dahulu sebelum menambahkan penjualan.');
         }
 
-        $products = Product::where('store_id', $store->id)
-        ->withSum(['stocks as stok_masuk' => function($q) {
-            $q->where('type', 'in');
-        }], 'quantity')
-        ->withSum(['stocks as stok_keluar' => function($q) {
-            $q->where('type', 'out');
-        }], 'quantity')
-        ->get()
-        ->map(function ($product) {
-            $product->stock = ($product->stok_masuk ?? 0) - ($product->stok_keluar ?? 0);
-            return $product;
-        });
+        $products = Product::with('stocks')
+        ->where('store_id', $store->id)
+        ->get();
 
 
         if ($products->isEmpty()) {
@@ -67,7 +58,7 @@ class SaleController extends Controller
         }
 
         return Inertia::render('Sale/Create', [
-            'products' => $products,
+            'products' => $products->map(fn($p) => $p->append('stock')),
         ]);
     }
 
@@ -100,7 +91,7 @@ class SaleController extends Controller
                 // ✅ Hitung stok tersedia
                 $stokMasuk = Stock::where('product_id', $product->id)->where('type', 'in')->sum('quantity');
                 $stokKeluar = Stock::where('product_id', $product->id)->where('type', 'out')->sum('quantity');
-                $stokTersedia = $stokMasuk - $stokKeluar;
+                $stokTersedia = $product->stock;
 
                 if ($stokTersedia < $item['quantity']) {
                     throw new \Exception("Stok {$product->name} tidak cukup. Sisa stok: {$stokTersedia}");

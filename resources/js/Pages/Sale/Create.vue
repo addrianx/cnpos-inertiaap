@@ -94,7 +94,7 @@
 
 <script setup>
 import { useForm, Link } from "@inertiajs/vue3";
-import { computed } from "vue";
+import { computed, onMounted  } from "vue";
 import AppLayout from "@/Layouts/AppLayout.vue";
 import Swal from "sweetalert2";
 
@@ -186,4 +186,9 @@ const submit = () => {
   });
 };
 
+onMounted(() => {
+  console.log("=== Debug Products with Stock ===");
+  console.table(props.products); // biar rapi lihat tiap field
+  // atau console.log(props.products) kalau array terlalu panjang
+});
 </script>
