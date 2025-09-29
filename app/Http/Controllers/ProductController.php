@@ -143,4 +143,17 @@ class ProductController extends Controller
 
         return redirect()->route('products.index')->with('success', 'Produk berhasil dihapus');
     }
+
+    // ProductController.php
+    public function bulkDelete(Request $request)
+    {
+        $ids = $request->ids;
+        if (!$ids || !is_array($ids)) {
+            return response()->json(['message' => 'Data tidak valid'], 422);
+        }
+
+        Product::whereIn('id', $ids)->delete();
+        return response()->json(['message' => 'Produk berhasil dihapus']);
+    }
+
 }

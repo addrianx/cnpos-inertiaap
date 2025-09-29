@@ -55,7 +55,10 @@
       </div>
 
       <!-- Tombol -->
-      <button type="submit" class="btn btn-success">Update</button>
+      <button type="submit" class="btn btn-success" :disabled="loading">
+        <span v-if="loading" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+        {{ loading ? 'Sedang menyimpan...' : 'Update' }}
+      </button>
       <Link href="/products" class="btn btn-secondary ms-2">Batal</Link>
     </form>
   </AppLayout>
@@ -63,7 +66,8 @@
 
 <script setup>
 import { useForm, Link, usePage } from '@inertiajs/vue3'
-import { onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
+import Swal from 'sweetalert2'
 import AppLayout from '@/Layouts/AppLayout.vue'
 
 const props = defineProps({
@@ -105,10 +109,31 @@ const updatePrice = (e) => {
   e.target.value = formatRupiah(raw)
 }
 
-// Submit update
-const submit = () => {
-  form.put(`/products/${props.product.id}`)
+const loading = ref(false)
+const submit = async () => {
+  loading.value = true
+  try {
+    const payload = {
+      _method: 'put',
+      sku: form.sku,
+      name: form.name,
+      cost: form.cost,
+      price: form.price,
+      discount: form.discount,
+      category_id: form.category_id,
+    }
+
+    await axios.post(`/products/${props.product.id}`, payload)
+    Swal.fire('Berhasil!', 'Produk berhasil diperbarui.', 'success')
+  } catch (err) {
+    console.error(err.response?.data)
+    Swal.fire('Gagal!', err.response?.data?.message || 'Terjadi kesalahan.', 'error')
+  } finally {
+    loading.value = false
+  }
 }
+
+
 
 // ⚡ Reset form saat mount untuk mencegah data tersimpan dari bfcache
 onMounted(() => {

@@ -34,6 +34,7 @@ Route::get('/', function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', [ProductController::class, 'index'])->name('dashboard');
     Route::resource('products', ProductController::class);
+    Route::post('/products/bulk-delete', [ProductController::class, 'bulkDelete']);
     // STOCK ROUTE
     Route::get('/stock/adjust', [StockController::class, 'adjustForm'])->name('stock.adjust.form');
     Route::post('/stock/adjust', [StockController::class, 'adjust'])->name('stock.adjust');

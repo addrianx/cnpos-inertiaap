@@ -40,6 +40,9 @@
             <table class="table table-bordered table-striped align-middle text-nowrap">
                 <thead class="table-dark">
                     <tr>
+                        <th>
+                        <input type="checkbox" v-model="selectAll" @change="toggleSelectAll">
+                        </th>
                         <th>Kode (SKU)</th>
                         <th>Nama</th>
                         <th>Modal</th>
@@ -50,6 +53,12 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <tr>
+                        <td>
+                        <input type="checkbox" v-model="selectedProducts" :value="product.id">
+                        </td>                        
+                    </tr>
+
                     <!-- Loader khusus di tabel -->
                     <tr v-if="tableLoading">
                         <td colspan="7" class="text-center py-4">
@@ -111,6 +120,12 @@
 
                 </tbody>
             </table>
+            <button 
+                class="btn btn-danger me-2" 
+                :disabled="selectedProducts.length === 0"
+                @click="confirmDeleteMultiple">
+                Hapus Terpilih ({{ selectedProducts.length }})
+            </button>
         </div>
 
         <!-- Pagination -->
@@ -221,19 +236,19 @@
 
     // COMPUTED PROPERTIES
     // --- FILTER SECTION ---
+    const productList = ref([...props.products])
     const filteredProducts = computed(() => {
-    let list = props.products
+    let list = [...productList.value] // pakai reactive array
 
     if (searchQuery.value) {
         const query = searchQuery.value.toLowerCase()
-
         list = list.filter(p => {
         const category = categories.value.find(c => c.id === p.category_id)
         const categoryName = category ? category.name.toLowerCase() : ''
         return (
-            p.name.toLowerCase().includes(query) || 
-            p.sku.toLowerCase().includes(query) || 
-            categoryName.includes(query)  // <-- cek kategori
+            p.name.toLowerCase().includes(query) ||
+            p.sku.toLowerCase().includes(query) ||
+            categoryName.includes(query)
         )
         })
     }
@@ -372,25 +387,89 @@
 
 
     const confirmDelete = (id) => {
-        Swal.fire({
-            title: 'Apakah Anda yakin?',
-            text: 'Produk yang dihapus tidak dapat dikembalikan!',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            cancelButtonColor: '#6c757d',
-            confirmButtonText: 'Ya, hapus!',
-            cancelButtonText: 'Batal',
-        }).then(result => {
-            if (result.isConfirmed) {
-                startLoading()
-                router.delete(`/products/${id}`, {
-                    onFinish: () => stopLoading(),
-                    onSuccess: () => Swal.fire('Berhasil!', 'Produk berhasil dihapus.', 'success'),
-                    onError: () => Swal.fire('Gagal!', 'Terjadi kesalahan.', 'error'),
-                })
-            }
-        })
+    Swal.fire({
+        title: 'Apakah Anda yakin?',
+        text: 'Produk yang dihapus tidak dapat dikembalikan!',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Ya, hapus!',
+        cancelButtonText: 'Batal',
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+        try {
+            startLoading()
+            await axios.post(`/products/${id}`, {
+            _method: 'delete'
+            })
+            // hapus dari reactive array
+            productList.value = productList.value.filter(p => p.id !== id)
+
+            Swal.fire('Berhasil!', 'Produk berhasil dihapus.', 'success')
+        } catch (err) {
+            Swal.fire('Gagal!', err.response?.data?.message || 'Terjadi kesalahan.', 'error')
+        } finally {
+            stopLoading()
+        }
+        }
+    })
+    }
+
+    // Reactive untuk checkbox
+    const selectedProducts = ref([])
+    const selectAll = ref(false)
+
+    // Toggle semua checkbox
+    const toggleSelectAll = () => {
+    if (selectAll.value) {
+        selectedProducts.value = paginatedProducts.value.map(p => p.id)
+    } else {
+        selectedProducts.value = []
+    }
+    }
+
+    // Watch jika paginatedProducts berubah, reset selectAll
+    watch(paginatedProducts, () => {
+    selectAll.value = false
+    selectedProducts.value = []
+    })
+
+    // Hapus banyak produk
+    const confirmDeleteMultiple = () => {
+    if (selectedProducts.value.length === 0) return
+
+    Swal.fire({
+        title: `Hapus ${selectedProducts.value.length} produk?`,
+        text: 'Produk yang dihapus tidak dapat dikembalikan!',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Ya, hapus!',
+        cancelButtonText: 'Batal',
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+        try {
+            startLoading()
+            await axios.post('/products/bulk-delete', {
+            ids: selectedProducts.value
+            })
+            // hapus dari reactive array
+            productList.value = productList.value.filter(
+            p => !selectedProducts.value.includes(p.id)
+            )
+            selectedProducts.value = []
+            selectAll.value = false
+
+            Swal.fire('Berhasil!', 'Produk berhasil dihapus.', 'success')
+        } catch (err) {
+            Swal.fire('Gagal!', err.response?.data?.message || 'Terjadi kesalahan.', 'error')
+        } finally {
+            stopLoading()
+        }
+        }
+    })
     }
 
     // toggle harga modal
