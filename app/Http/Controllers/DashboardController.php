@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Store;
 use App\Models\Product;
+use App\Models\Sale;
 use App\Models\Category;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
