@@ -53,12 +53,6 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr>
-                        <td>
-                        <input type="checkbox" v-model="selectedProducts" :value="product.id">
-                        </td>                        
-                    </tr>
-
                     <!-- Loader khusus di tabel -->
                     <tr v-if="tableLoading">
                         <td colspan="7" class="text-center py-4">
@@ -77,6 +71,9 @@
                     </tr>
 
                     <tr v-else v-for="product in paginatedProducts" :key="product.id">
+                      <td>
+                        <input type="checkbox" v-model="selectedProducts" :value="product.id">
+                    </td>
                     <td>{{ product.sku }}</td>
                     <td>{{ product.name }}</td>
                     
