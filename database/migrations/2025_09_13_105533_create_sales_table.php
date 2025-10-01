@@ -15,12 +15,16 @@ return new class extends Migration
             $table->id();
             $table->string('sale_code', 20)->unique();
             $table->foreignId('user_id')->constrained()->onDelete('cascade'); // kasir
-            $table->decimal('subtotal', 12, 2);    // sebelum diskon
-            $table->decimal('discount', 12, 2)->default(0); // diskon transaksi (nominal)
-            $table->decimal('total', 12, 2);       // setelah diskon
+            $table->decimal('subtotal', 12, 2);
+            $table->decimal('discount', 12, 2)->default(0);
+            $table->decimal('total', 12, 2);
             $table->decimal('paid', 12, 2);
             $table->decimal('change', 12, 2)->default(0);
             $table->foreignId('store_id')->constrained()->onDelete('cascade');
+
+            // ✅ Tambahan
+            $table->date('sale_date')->nullable(); // kalau kosong → default tanggal hari ini
+
             $table->timestamps();
         });
     }

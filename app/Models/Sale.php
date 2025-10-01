@@ -14,6 +14,7 @@ class Sale extends Model
         'paid',
         'change',
         'sale_code',
+        'sale_date', // ✅ Tambahan
     ];
 
     protected static function boot()
@@ -21,6 +22,11 @@ class Sale extends Model
         parent::boot();
 
         static::creating(function ($sale) {
+            // default tanggal hari ini kalau kosong
+            if (empty($sale->sale_date)) {
+                $sale->sale_date = now()->toDateString();
+            }
+
             // ambil id terakhir + 1 untuk membuat nomor urut
             $lastId = self::max('id') + 1;
 

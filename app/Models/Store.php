@@ -11,9 +11,9 @@ class Store extends Model
 
     protected $fillable = ['name', 'address', 'user_id'];
 
-    public function user()
+    public function users()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsToMany(User::class, 'store_user')->withTimestamps();
     }
 
     public function products()

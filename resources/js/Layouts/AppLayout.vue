@@ -3,7 +3,7 @@
     <!-- Navbar -->
     <Navbar />
 
-    <div class="container mt-4">
+    <div class="container my-4">
       <slot />
 
       <!-- Overlay Loading -->

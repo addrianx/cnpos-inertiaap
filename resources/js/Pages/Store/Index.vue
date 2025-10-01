@@ -26,7 +26,13 @@
           <tr v-else v-for="store in stores" :key="store.id">
             <td>{{ store.name }}</td>
             <td>{{ store.address }}</td>
-            <td>{{ store.user?.name || 'Belum ada user' }}</td>
+            <td>
+              <ul>
+                <li v-for="u in store.users" :key="u.id">
+                  {{ u.name }}
+                </li>
+              </ul>
+            </td>
             <td>
               <Link
                 :href="`/stores/${store.id}/edit`"

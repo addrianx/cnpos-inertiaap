@@ -46,11 +46,9 @@ class User extends Authenticatable
         ];
     }
 
-    public function store()
+    public function stores()
     {
-        return $this->hasOne(Store::class); 
-        // kalau mau 1 user = 1 toko
-        // pakai hasMany kalau 1 user bisa punya banyak toko
+        return $this->belongsToMany(Store::class, 'store_user')->withTimestamps();
     }
 
     public function roles()
@@ -62,4 +60,5 @@ class User extends Authenticatable
     {
         return $this->roles()->where('name', $role)->exists();
     }
+    
 }

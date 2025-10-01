@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Store;
 use App\Models\Product;
 use App\Models\Category;
 use Illuminate\Http\Request;
@@ -12,19 +13,19 @@ class ProductController extends Controller
     // 📌 Tampilkan daftar produk
     public function index()
     {
-        $store = auth()->user()->store;
+        $store = auth()->user()->stores()->with(['users.roles'])->first();
 
         if (!$store) {
             return redirect()->route('stores.create')
                 ->with('error', 'Anda belum memiliki toko, buat toko terlebih dahulu sebelum mengelola produk.');
         }
 
-        // ✅ ambil produk beserta stok & kategori
+        $storeId = $store->id;
+
         $products = Product::with(['stocks', 'category'])
-            ->where('store_id', $store->id)
+            ->where('store_id', $storeId)
             ->get();
 
-        // ✅ ambil semua kategori (untuk filter/sortir di UI)
         $categories = Category::all();
 
         return Inertia::render('Products/Index', [
@@ -34,15 +35,18 @@ class ProductController extends Controller
     }
 
 
+
     // 📌 Form tambah produk
     public function create()
     {
-        $store = auth()->user()->store;
+        $store = auth()->user()->stores()->with(['users.roles'])->first();
 
         if (!$store) {
             return redirect()->route('stores.create')
-                ->with('error', 'Anda belum memiliki toko, buat toko terlebih dahulu sebelum menambahkan produk.');
+                ->with('error', 'Anda belum memiliki toko, buat toko terlebih dahulu sebelum mengelola produk.');
         }
+
+        $storeId = $store->id;
 
         // Ambil semua kategori
         $categories = Category::all();
@@ -65,7 +69,7 @@ class ProductController extends Controller
             'category_id' => 'required|exists:categories,id', // tambahkan validasi kategori
         ]);
 
-        $store = auth()->user()->store;
+        $store = auth()->user()->stores()->with(['users.roles'])->first();
 
         if (!$store) {
             return redirect()->route('products.index')
@@ -110,7 +114,7 @@ class ProductController extends Controller
             'category_id' => 'required|exists:categories,id', // tambahkan validasi kategori
         ]);
 
-        $store = auth()->user()->store;
+        $store = auth()->user()->stores()->with(['users.roles'])->first();
 
         if (!$store) {
             return redirect()->route('products.index')
@@ -135,7 +139,11 @@ class ProductController extends Controller
     // 📌 Hapus produk
     public function destroy(Product $product)
     {
-        if ($product->store->user_id !== auth()->id()) {
+        // Ambil semua user toko
+        $storeUsers = $product->store->users;
+
+        // Cek apakah user login termasuk di store ini
+        if (!$storeUsers->contains(auth()->id())) {
             abort(403, 'Unauthorized');
         }
 
@@ -143,6 +151,7 @@ class ProductController extends Controller
 
         return redirect()->route('products.index')->with('success', 'Produk berhasil dihapus');
     }
+
 
     // ProductController.php
     public function bulkDelete(Request $request)

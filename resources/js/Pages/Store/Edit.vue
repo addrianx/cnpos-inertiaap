@@ -36,12 +36,18 @@
           <!-- Pilih User Manager -->
           <div class="mb-3">
             <label class="form-label">User Manager</label>
-            <select v-model="formStore.user_id" class="form-select" required>
-              <option value="" disabled>Pilih user yang akan jadi manager</option>
-              <option v-for="user in users" :key="user.id" :value="user.id">
+            <div v-for="user in users" :key="user.id" class="form-check">
+              <input
+                type="checkbox"
+                class="form-check-input"
+                :id="'user-' + user.id"
+                :value="user.id"
+                v-model="formStore.user_ids"
+              />
+              <label class="form-check-label" :for="'user-' + user.id">
                 {{ user.name }} ({{ user.email }})
-              </option>
-            </select>
+              </label>
+            </div>
           </div>
 
           <!-- Tombol Update -->
@@ -66,7 +72,7 @@ const props = defineProps({
 const formStore = reactive({
   name: props.store.name,
   address: props.store.address,
-  user_id: props.store.user_id,
+  user_ids: props.store.users?.map(u => u.id) || [],
 })
 
 const updateStore = () => {

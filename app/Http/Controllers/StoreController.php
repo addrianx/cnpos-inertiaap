@@ -15,7 +15,7 @@ class StoreController extends Controller
      */
     public function index()
     {
-        $stores = Store::with(['user.roles'])->get(); // load role manager
+        $stores = Store::with(['users.roles'])->get();
         return Inertia::render('Store/Index', [
             'stores' => $stores,
         ]);
@@ -42,10 +42,14 @@ class StoreController extends Controller
         $request->validate([
             'name'    => 'required|string|max:255',
             'address' => 'required|string',
-            'user_id' => 'nullable|exists:users,id',
+            'user_ids' => 'array', // banyak user
+            'user_ids.*' => 'exists:users,id',
         ]);
 
-        Store::create($request->only('name', 'address', 'user_id'));
+        $store = Store::create($request->only('name', 'address'));
+        if ($request->has('user_ids')) {
+            $store->users()->sync($request->user_ids);
+        }
 
         return redirect()->route('stores.index')->with('success', 'Toko berhasil ditambahkan!');
     }
@@ -55,14 +59,17 @@ class StoreController extends Controller
      */
     public function edit(Store $store)
     {
+        $store->load('users'); // ambil user manager yang sudah tersimpan
         $users = User::all();
         $roles = Role::all();
+
         return Inertia::render('Store/Edit', [
             'store' => $store,
             'users' => $users,
             'roles' => $roles,
         ]);
     }
+
 
     /**
      * Update toko
@@ -72,10 +79,12 @@ class StoreController extends Controller
         $request->validate([
             'name'    => 'required|string|max:255',
             'address' => 'required|string',
-            'user_id' => 'nullable|exists:users,id',
+            'user_ids' => 'array',
+            'user_ids.*' => 'exists:users,id',
         ]);
 
-        $store->update($request->only('name', 'address', 'user_id'));
+        $store->update($request->only('name', 'address'));
+        $store->users()->sync($request->user_ids ?? []);
 
         return redirect()->route('stores.index')->with('success', 'Toko berhasil diperbarui!');
     }

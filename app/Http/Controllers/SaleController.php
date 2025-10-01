@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Controllers;
 
 use Illuminate\Support\Facades\DB;
@@ -8,17 +9,18 @@ use App\Models\Store;
 use App\Models\Stock;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use App\Traits\PaymentValidationTrait; // ✅ import trait
 
 class SaleController extends Controller
 {
+    use PaymentValidationTrait; // ✅ pakai trait
 
-    /**
-     * Daftar semua transaksi milik store user login
+    /** 
+     * Daftar semua transaksi milik store user login 
      */
     public function index()
     {
         $store = Store::where('user_id', auth()->id())->first();
-
         if (!$store) {
             return redirect()->route('stores.create')
                 ->with('error', 'Anda belum memiliki toko, buat toko terlebih dahulu sebelum melihat daftar penjualan.');
@@ -34,23 +36,20 @@ class SaleController extends Controller
         ]);
     }
 
-    /**
-     * Halaman buat penjualan baru
+    /** 
+     * Halaman buat penjualan baru 
      */
-
     public function create()
     {
         $store = Store::where('user_id', auth()->id())->first();
-
         if (!$store) {
             return redirect()->route('stores.create')
                 ->with('error', 'Anda belum memiliki toko, buat toko terlebih dahulu sebelum menambahkan penjualan.');
         }
 
         $products = Product::with('stocks')
-        ->where('store_id', $store->id)
-        ->get();
-
+            ->where('store_id', $store->id)
+            ->get();
 
         if ($products->isEmpty()) {
             return redirect()->route('products.index')
@@ -62,19 +61,18 @@ class SaleController extends Controller
         ]);
     }
 
-
-    /**
-     * Simpan transaksi penjualan
+    /** 
+     * Simpan transaksi penjualan 
      */
     public function store(Request $request)
     {
         $request->validate([
-            'items'                => 'required|array|min:1',
-            'items.*.product_id'   => 'required|exists:products,id',
-            'items.*.quantity'     => 'required|integer|min:1',
-            'items.*.discount'     => 'nullable|numeric',
-            'discount'             => 'nullable|numeric',
-            'paid'                 => 'required|numeric',
+            'items' => 'required|array|min:1',
+            'items.*.product_id' => 'required|exists:products,id',
+            'items.*.quantity' => 'required|integer|min:1',
+            'items.*.discount' => 'nullable|numeric',
+            'discount' => 'nullable|numeric',
+            'paid' => 'required|numeric',
         ]);
 
         $store = Store::where('user_id', auth()->id())->firstOrFail();
@@ -88,13 +86,11 @@ class SaleController extends Controller
                     ->where('store_id', $store->id)
                     ->firstOrFail();
 
-                // ✅ Hitung stok tersedia
-                $stokMasuk = Stock::where('product_id', $product->id)->where('type', 'in')->sum('quantity');
-                $stokKeluar = Stock::where('product_id', $product->id)->where('type', 'out')->sum('quantity');
                 $stokTersedia = $product->stock;
-
                 if ($stokTersedia < $item['quantity']) {
-                    throw new \Exception("Stok {$product->name} tidak cukup. Sisa stok: {$stokTersedia}");
+                    return back()->withErrors([
+                        'items.'.$loop->index.'.quantity' => "Stok {$product->name} tidak cukup. Sisa stok: {$stokTersedia}"
+                    ])->withInput();
                 }
 
                 $price = $product->price;
@@ -103,16 +99,23 @@ class SaleController extends Controller
             }
 
             $discount = $request->discount ?? 0;
-            $total    = max($subtotal - $discount, 0);
+            $total = max($subtotal - $discount, 0);
+
+            // ✅ Validasi dibayar >= total
+            $request->validate([
+                'paid' => 'gte:'.$total
+            ], [
+                'paid.gte' => 'Jumlah bayar tidak mencukupi, minimal Rp '.number_format($total,0,',','.')
+            ]);
 
             $sale = Sale::create([
-                'user_id'  => auth()->id(),
+                'user_id' => auth()->id(),
                 'store_id' => $store->id,
                 'subtotal' => $subtotal,
                 'discount' => $discount,
-                'total'    => $total,
-                'paid'     => $request->paid,
-                'change'   => max($request->paid - $total, 0),
+                'total' => $total,
+                'paid' => $request->paid,
+                'change' => max($request->paid - $total, 0),
             ]);
 
             foreach ($request->items as $item) {
@@ -120,23 +123,23 @@ class SaleController extends Controller
                     ->where('store_id', $store->id)
                     ->firstOrFail();
 
-                $price        = $product->price;
+                $price = $product->price;
                 $lineSubtotal = ($price * $item['quantity']) - ($item['discount'] ?? 0);
 
                 $sale->items()->create([
                     'product_id' => $product->id,
-                    'quantity'   => $item['quantity'],
-                    'price'      => $price,
-                    'discount'   => $item['discount'] ?? 0,
-                    'subtotal'   => $lineSubtotal,
+                    'quantity' => $item['quantity'],
+                    'price' => $price,
+                    'discount' => $item['discount'] ?? 0,
+                    'subtotal' => $lineSubtotal,
                 ]);
 
                 Stock::create([
                     'product_id' => $product->id,
-                    'type'       => 'out',
-                    'quantity'   => $item['quantity'],
-                    'reference'  => $sale->sale_code,
-                    'note'       => 'Penjualan ' . $sale->sale_code,
+                    'type' => 'out',
+                    'quantity' => $item['quantity'],
+                    'reference' => $sale->sale_code,
+                    'note' => 'Penjualan ' . $sale->sale_code,
                 ]);
             }
 
@@ -145,17 +148,12 @@ class SaleController extends Controller
             return redirect()
                 ->route('sales.index')
                 ->with('success', 'Transaksi ' . $sale->sale_code . ' berhasil disimpan');
-
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->withErrors([
                 'msg' => $e->getMessage()
-            ]);
+            ])->withInput();
         }
     }
 
-
-
-
 }
-
