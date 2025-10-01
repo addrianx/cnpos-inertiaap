@@ -57,66 +57,55 @@
       </div>
     </div>
 
-    <!-- Form Tambah User Baru -->
-    <div class="card">
-      <div class="card-header bg-secondary text-white">
-        Tambah User Baru (Manager Toko)
-      </div>
-      <div class="card-body">
-        <form @submit.prevent="submitUser">
-          <!-- Nama -->
-          <div class="mb-3">
-            <label class="form-label">Nama</label>
-            <input
-              v-model="formUser.name"
-              type="text"
-              class="form-control"
-              placeholder="Nama lengkap"
-              required
-            />
-          </div>
-
-          <!-- Email -->
-          <div class="mb-3">
-            <label class="form-label">Email</label>
-            <input
-              v-model="formUser.email"
-              type="email"
-              class="form-control"
-              placeholder="Email aktif"
-              required
-            />
-          </div>
-
-          <!-- Password -->
-          <div class="mb-3">
-            <label class="form-label">Password</label>
-            <input
-              v-model="formUser.password"
-              type="password"
-              class="form-control"
-              placeholder="Minimal 6 karakter"
-              required
-            />
-          </div>
-
-          <!-- Pilih Role -->
-          <div class="mb-3">
-            <label class="form-label">Role</label>
-            <select v-model="formUser.role_id" class="form-select" required>
-              <option value="" disabled>Pilih role untuk user ini</option>
-              <option v-for="role in roles" :key="role.id" :value="role.id">
-                {{ role.label }}
-              </option>
-            </select>
-            <small class="text-muted">Role menentukan hak akses user di sistem</small>
-          </div>
-
-          <!-- Tombol Simpan User -->
-          <button type="submit" class="btn btn-primary">Simpan User</button>
-        </form>
-      </div>
+  <!-- Form Tambah User Baru -->
+  <div class="card">
+    <div class="card-header bg-secondary text-white">
+      Tambah User Baru (Manager Toko)
     </div>
+    <div class="card-body">
+      <form @submit.prevent="submitUser">
+        <!-- Nama -->
+        <div class="mb-3">
+          <label class="form-label">Nama</label>
+          <input
+            v-model="formUser.name"
+            type="text"
+            class="form-control"
+            placeholder="Nama lengkap"
+            required
+          />
+        </div>
+
+        <!-- Email -->
+        <div class="mb-3">
+          <label class="form-label">Email</label>
+          <input
+            v-model="formUser.email"
+            type="email"
+            class="form-control"
+            placeholder="Email aktif"
+            required
+          />
+        </div>
+
+        <!-- Pilih Role -->
+        <div class="mb-3">
+          <label class="form-label">Role</label>
+          <select v-model="formUser.role_id" class="form-select" required>
+            <option value="" disabled>Pilih role untuk user ini</option>
+            <option v-for="role in roles" :key="role.id" :value="role.id">
+              {{ role.label }}
+            </option>
+          </select>
+          <small class="text-muted">Role menentukan hak akses user di sistem</small>
+        </div>
+
+        <!-- Tombol Simpan User -->
+        <button type="submit" class="btn btn-primary">Simpan User</button>
+      </form>
+    </div>
+  </div>
+
   </AppLayout>
 </template>
 
@@ -163,21 +152,17 @@ const submitStore = () => {
 
 // Submit User
 const submitUser = () => {
-  // Buat payload plain object dari reactive formUser
   const payload = {
     name: formUser.name,
     email: formUser.email,
-    password: formUser.password,
     role_id: formUser.role_id,
   }
 
   router.post('/users', payload, {
     onSuccess: () => {
       Swal.fire('Berhasil!', 'User baru berhasil ditambahkan.', 'success')
-      // Reset form
       formUser.name = ''
       formUser.email = ''
-      formUser.password = ''
       formUser.role_id = ''
     },
     onError: (errors) => {
@@ -186,6 +171,7 @@ const submitUser = () => {
     },
   })
 }
+
 
 
 </script>

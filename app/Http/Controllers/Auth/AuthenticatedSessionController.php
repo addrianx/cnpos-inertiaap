@@ -27,14 +27,30 @@ class AuthenticatedSessionController extends Controller
     /**
      * Handle an incoming authentication request.
      */
-    public function store(LoginRequest $request): RedirectResponse
+    public function store(LoginRequest $request)
     {
-        $request->authenticate();
+        $user = \App\Models\User::where('email', $request->email)->first();
 
+        if (!$user) {
+            // user tidak ditemukan, biarkan LoginRequest handle error
+            return back()->withErrors(['email' => 'Email tidak ditemukan']);
+        }
+
+        if (!$user->password) {
+            // Redirect ke halaman set password via Inertia
+            return Inertia::render('Auth/SetPassword', [
+                'userId' => $user->id,
+                'email' => $user->email,
+            ]);
+        }
+
+        // Jika password sudah ada, lanjutkan login biasa
+        $request->authenticate();
         $request->session()->regenerate();
 
         return redirect()->intended(route('dashboard', absolute: false));
     }
+
 
     /**
      * Destroy an authenticated session.

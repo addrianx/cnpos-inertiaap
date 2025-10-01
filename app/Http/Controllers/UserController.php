@@ -14,14 +14,13 @@ class UserController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
-            'password' => 'required|string|min:6',
             'role_id' => 'required|exists:roles,id',
         ]);
 
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
-            'password' => bcrypt($request->password),
+            'password' => $request->password ? bcrypt($request->password) : null,
         ]);
 
         // assign role ke pivot table role_user
