@@ -12,7 +12,11 @@ class StockController extends Controller
     public function index()
     {
         // Ambil semua stok hanya untuk produk milik store user login
-        $stocks = Stock::with('product')
+        $stocks = Stock::with([
+                'product',
+                'product.store.user',
+                'user'  // <- tambah ini
+            ])
             ->whereHas('product.store', function ($q) {
                 $q->where('user_id', auth()->id());
             })
@@ -61,6 +65,7 @@ class StockController extends Controller
         // Simpan log stok
         Stock::create([
             'product_id' => $product->id,
+            'user_id'    => auth()->id(),
             'type'       => $request->type,
             'quantity'   => $request->quantity,
             'reference'  => $request->reference,

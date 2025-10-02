@@ -124,7 +124,7 @@ defineProps({
 const formStore = reactive({
   name: '',
   address: '',
-  user_id: '',
+  user_ids: [], // ubah dari user_id: '' menjadi array kosong
 })
 
 // Form User Baru

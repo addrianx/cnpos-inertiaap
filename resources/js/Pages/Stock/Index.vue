@@ -50,23 +50,21 @@
             <th>Jumlah</th>
             <th>Catatan</th>
             <th>Keterangan</th>
+            <th>Diubah Oleh</th> <!-- ✅ kolom baru -->
           </tr>
         </thead>
         <tbody>
-          <!-- Jika kosong -->
           <tr v-if="!loading && paginatedStocks.length === 0">
-            <td colspan="5" class="text-center text-muted py-4">
-              Tidak ada stok.
-            </td>
+            <td colspan="6" class="text-center text-muted py-4">Tidak ada stok.</td>
           </tr>
 
-          <!-- Jika ada data -->
           <tr v-else v-for="(s, i) in paginatedStocks" :key="s.id">
             <td>{{ (currentPage - 1) * perPage + i + 1 }}</td>
             <td>{{ s.product.name }}</td>
             <td>{{ s.quantity }}</td>
             <td>{{ s.note }}</td>
             <td>{{ s.type }}</td>
+            <td>{{ s.user.name }}</td>
           </tr>
         </tbody>
       </table>

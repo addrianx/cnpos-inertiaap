@@ -28,12 +28,18 @@
         <!-- Produk -->
         <div class="col-md-4 col-12 mb-2">
           <label class="form-label">Produk</label>
-          <select v-model="item.product_id" class="form-select">
+          <select v-model="item.product_id"
+                  class="form-select"
+                  :class="{ 'is-invalid': form.errors.items && form.errors.items[index] }">
             <option disabled value="">-- Pilih Produk --</option>
             <option v-for="p in props.products" :key="p.id" :value="p.id">
               {{ p.name }} (Stok: {{ p.stock ?? 0 }})
             </option>
           </select>
+          <div v-if="form.errors.items && form.errors.items[index]" class="invalid-feedback d-block">
+            {{ form.errors.items[index] }}
+          </div>
+
         </div>
 
         <!-- Jumlah + Stok -->
@@ -137,11 +143,12 @@
 
 <script setup>
 import { useForm, Link } from "@inertiajs/vue3";
-import { computed, onMounted  } from "vue";
+import { computed, onMounted, reactive  } from "vue";
 import AppLayout from "@/Layouts/AppLayout.vue";
 import Swal from "sweetalert2";
 
 const props = defineProps({ products: Array });
+const errorsItem = reactive({}) 
 
 // Form data
 const form = useForm({
@@ -189,11 +196,35 @@ const change = computed(() => Math.max(form.paid - totalTransaction.value, 0));
 
 // Submit form
 const submit = () => {
+  // ✅ Validasi produk belum dipilih
+  let hasEmptyProduct = false;
+
+  form.items.forEach((item, index) => {
+    if (!item.product_id) {
+      // buat object errors jika belum ada
+      if (!form.errors.items) form.errors.items = {};
+      form.errors.items[index] = "Pilih produk terlebih dahulu.";
+      hasEmptyProduct = true;
+    } else {
+      // hapus error jika sudah diisi
+      if (form.errors.items) form.errors.items[index] = null;
+    }
+  });
+
+  if (hasEmptyProduct) {
+    Swal.fire({
+      icon: "warning",
+      title: "Input Salah",
+      text: "Periksa kembali item penjualan, ada produk yang belum dipilih.",
+    });
+    return; // stop submit tanpa merubah item atau kode lain
+  }
+
+  // ⚡ Sisa kode validasi harga, stok, subtotal, paid tetap sama
   for (let item of itemsWithDetails.value) {
     const product = props.products.find((p) => p.id === item.product_id);
     if (!product) continue;
 
-    // 🚫 Cek harga jual 0
     if (product.price <= 0) {
       Swal.fire({
         icon: "error",
@@ -203,15 +234,12 @@ const submit = () => {
       return;
     }
 
-    // 🚫 Harga jual lebih kecil dari modal
     if (product.price < product.cost) {
       return Swal.fire({
         title: "Harga Jual < Modal",
         text: `Harga jual Rp ${product.price.toLocaleString()} lebih rendah dari modal Rp ${product.cost.toLocaleString()}. Masukkan harga bayar manual.`,
         input: "number",
-        inputAttributes: {
-          min: product.cost,
-        },
+        inputAttributes: { min: product.cost },
         inputPlaceholder: "Minimal Rp " + product.cost.toLocaleString(),
         inputValidator: (value) => {
           if (!value || parseInt(value, 10) < product.cost) {
@@ -220,16 +248,12 @@ const submit = () => {
         },
       }).then((result) => {
         if (result.isConfirmed) {
-          // 💡 Simpan harga bayar manual di form.paid
           form.paid = parseInt(result.value, 10);
-
-          // 🚀 lanjutkan submit ulang
-          submit();
+          submit(); // lanjut submit ulang
         }
       });
     }
 
-    // 🚫 Stok tidak cukup
     if (product.stock < item.quantity) {
       Swal.fire({
         icon: "warning",
@@ -240,50 +264,46 @@ const submit = () => {
     }
   }
 
-  // ✅ Semua valid → kirim ke server
-form.post("/sales", {
-  data: {
-    sale_date: form.sale_date,
-    items: itemsWithDetails.value,
-    subtotal: subtotal.value,
-    discount: totalDiscount.value,
-    total: totalTransaction.value,
-    paid: form.paid,
-    change: change.value,
-  },
-  onSuccess: () => {
-    Swal.fire({
-      icon: "success",
-      title: "Berhasil!",
-      text: "Transaksi berhasil disimpan.",
-    });
-    form.reset();
-  },
-  onError: (errors) => {
-    console.log("=== Debug Errors ===", errors);
-
-    if (errors.paid) {
-      // Laravel sudah balikin validasi field paid
-      form.errors.paid = errors.paid[0];
+  // 🔹 Kirim ke server (sudah ada di kode lama)
+  form.post("/sales", {
+    data: {
+      sale_date: form.sale_date,
+      items: itemsWithDetails.value,
+      subtotal: subtotal.value,
+      discount: totalDiscount.value,
+      total: totalTransaction.value,
+      paid: form.paid,
+      change: change.value,
+    },
+    onSuccess: () => {
       Swal.fire({
-        icon: "warning",
-        title: "Input Salah",
-        text: errors.paid[0],
+        icon: "success",
+        title: "Berhasil!",
+        text: "Transaksi berhasil disimpan.",
       });
-    } else if (errors.msg) {
-      // kalau error pakai key 'msg' → mapping ke paid
-      form.errors.paid = errors.msg;
-      Swal.fire({
-        icon: "warning",
-        title: "Input Salah",
-        text: errors.msg,
-      });
-    }
-  },
-});
-
-
+      form.reset();
+    },
+    onError: (errors) => {
+      console.log("=== Debug Errors ===", errors);
+      if (errors.paid) {
+        form.errors.paid = errors.paid[0];
+        Swal.fire({
+          icon: "warning",
+          title: "Input Salah",
+          text: errors.paid[0],
+        });
+      } else if (errors.msg) {
+        form.errors.paid = errors.msg;
+        Swal.fire({
+          icon: "warning",
+          title: "Input Salah",
+          text: errors.msg,
+        });
+      }
+    },
+  });
 };
+
 
 
 

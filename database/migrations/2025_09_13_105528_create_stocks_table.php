@@ -14,10 +14,12 @@ return new class extends Migration
         Schema::create('stocks', function (Blueprint $table) {
             $table->id();
             $table->foreignId('product_id')->constrained()->onDelete('cascade');
+            $table->foreignId('user_id')->after('product_id')->constrained()->cascadeOnDelete();
             $table->enum('type', ['in', 'out', 'adjustment']);
             $table->integer('quantity');
             $table->string('reference')->nullable(); // kode transaksi / faktur
             $table->string('note')->nullable();
+            
 
             // 🔥 tambahan untuk memisahkan sumber stok
             $table->string('source_type')->nullable(); // contoh: 'purchase', 'loan', 'return'
