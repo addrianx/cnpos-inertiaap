@@ -57,7 +57,7 @@
       </div>
 
       <button type="submit" class="btn btn-success">Ajukan Pinjaman</button>
-      <Link href="/stock-loans" class="btn btn-secondary ms-2">Batal</Link>
+      <Link href="/stock-loan" class="btn btn-secondary ms-2">Batal</Link>
     </form>
   </AppLayout>
 </template>

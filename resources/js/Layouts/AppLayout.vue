@@ -1,5 +1,10 @@
 <template>
   <div>
+    <!-- ✅ Gunakan Inertia Head untuk update title -->
+    <Head>
+      <title>{{ fullTitle }}</title>
+    </Head>
+
     <!-- Navbar -->
     <Navbar />
 
@@ -15,25 +20,23 @@
         <div class="spinner-border text-light" style="width: 3rem; height: 3rem;"></div>
       </div>
 
-<!-- Tombol Install PWA -->
-<div class="d-flex justify-content-center my-4" v-if="showInstall">
-  <button 
-    @click="installApp" 
-    class="btn btn-primary btn-lg shadow-sm rounded-pill px-4"
-  >
-    <i class="bi bi-download me-2"></i> Install Aplikasi
-  </button>
-</div>
-
-
+      <!-- Tombol Install PWA -->
+      <div class="d-flex justify-content-center my-4" v-if="showInstall">
+        <button 
+          @click="installApp" 
+          class="btn btn-primary btn-lg shadow-sm rounded-pill px-4"
+        >
+          <i class="bi bi-download me-2"></i> Install Aplikasi
+        </button>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
+import { Head, usePage } from '@inertiajs/vue3'
 import Navbar from './Navbar.vue'
-import { usePage } from '@inertiajs/vue3'
 import { isLoading } from '@/Stores/useLoading'
 import Swal from 'sweetalert2'
 
@@ -43,6 +46,15 @@ let deferredPrompt
 
 const HIDE_DAYS = 3 // berapa hari tombol disembunyikan setelah user menolak
 const LAST_REJECT_KEY = "pwa_last_reject"
+
+// ✅ Computed properties untuk title
+const fullTitle = computed(() => {
+  const title = page.props.title
+  const appName = page.props.appName || 'CNPOS'
+  return title === appName ? title : `${title} - ${appName}`
+})
+
+const appName = computed(() => page.props.appName || 'CNPOS')
 
 if (page.props.flash.success) {
   Swal.fire({
@@ -107,4 +119,3 @@ const installApp = async () => {
   deferredPrompt = null
 }
 </script>
-

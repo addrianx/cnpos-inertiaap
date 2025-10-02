@@ -74,6 +74,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/categories/quick-add', [CategoryController::class, 'quickAdd'])
         ->name('categories.quickAdd');
 
+         Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
 });
     
 

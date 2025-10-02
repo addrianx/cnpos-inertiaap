@@ -64,7 +64,7 @@
             <td>{{ s.quantity }}</td>
             <td>{{ s.note }}</td>
             <td>{{ s.type }}</td>
-            <td>{{ s.user.name }}</td>
+            <td>{{ s.user ? s.user.name : '-' }}</td>
           </tr>
         </tbody>
       </table>

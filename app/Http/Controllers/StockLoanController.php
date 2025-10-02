@@ -1,6 +1,5 @@
 <?php
 
-// app/Http/Controllers/StockLoanController.php
 namespace App\Http\Controllers;
 
 use Illuminate\Support\Facades\DB;
@@ -17,33 +16,49 @@ class StockLoanController extends Controller
     public function index() 
     {
         $user = auth()->user();
-        $loans = StockLoan::with(['fromStore', 'toStore', 'items.product'])->latest()->get();
-        $userStore = Store::where('user_id', $user->id)->first();
+        
+        // ✅ FIX: Gunakan many-to-many untuk mendapatkan store user
+        $userStore = Store::whereHas('users', function($q) use ($user) {
+            $q->where('users.id', $user->id);
+        })->first();
+
+        // ✅ FIX: Tampilkan hanya loan yang terkait dengan user
+        $loans = StockLoan::with(['fromStore', 'toStore', 'items.product'])
+            ->where(function($query) use ($userStore) {
+                $query->where('from_store_id', $userStore->id)
+                      ->orWhere('to_store_id', $userStore->id);
+            })
+            ->latest()
+            ->get();
 
         return inertia('StockLoan/Index', [
             'loans' => $loans,
-            'userStoreId' => $userStore ? $userStore->id : null, // kirim ke Inertia
+            'userStoreId' => $userStore ? $userStore->id : null,
         ]);
     }
-
 
     public function create(Request $request)
     {
         $user = auth()->user();
-        $store = Store::where('user_id', $user->id)->first();
+        
+        // ✅ FIX: Gunakan many-to-many
+        $store = Store::whereHas('users', function($q) use ($user) {
+            $q->where('users.id', $user->id);
+        })->first();
 
-        if (! $store) {
+        if (!$store) {
             return redirect()->back()->withErrors([
-                'store' => 'User ini belum memiliki store.'
+                'store' => 'User ini belum memiliki store atau tidak memiliki akses ke store manapun.'
             ]);
         }
 
-        // Ambil daftar toko lain
-        $stores = Store::where('id', '!=', $store->id)->get();
+        // ✅ FIX: Ambil daftar toko lain (yang tidak dimiliki user)
+        $stores = Store::whereHas('users', function($q) use ($user) {
+            $q->where('users.id', '!=', $user->id);
+        })->get();
 
-        $products = collect(); // default kosong
+        $products = collect();
 
-        // Jika user sudah pilih toko sumber
         if ($request->filled('from_store_id')) {
             $fromStoreId = $request->from_store_id;
 
@@ -69,12 +84,23 @@ class StockLoanController extends Controller
             'products' => $products,
             'stores'   => $stores,
             'my_store' => $store,
-            'from_store_id' => $request->from_store_id, // kirim biar bisa prefill
+            'from_store_id' => $request->from_store_id,
         ]);
     }
 
     public function getProducts(Store $store)
     {
+        // ✅ FIX: Authorization - cek apakah user punya akses ke store ini
+        $user = auth()->user();
+        $hasAccess = Store::where('id', $store->id)
+            ->whereHas('users', function($q) use ($user) {
+                $q->where('users.id', $user->id);
+            })->exists();
+
+        if (!$hasAccess) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
         $products = Product::select(
             'products.id',
             'products.name',
@@ -95,10 +121,8 @@ class StockLoanController extends Controller
         return response()->json($products);
     }
 
-
     public function store(Request $request)
     {
-        // ✅ Validasi input dari user
         $data = $request->validate([
             'from_store_id'        => 'required|exists:stores,id',
             'loan_date'            => 'required|date',
@@ -108,11 +132,14 @@ class StockLoanController extends Controller
             'items.*.quantity'     => 'required|integer|min:1',
         ]);
 
-        // ✅ Ambil store milik user login
         $user = auth()->user();
-        $store = Store::where('user_id', $user->id)->first();
+        
+        // ✅ FIX: Gunakan many-to-many
+        $store = Store::whereHas('users', function($q) use ($user) {
+            $q->where('users.id', $user->id);
+        })->first();
 
-        if (! $store) {
+        if (!$store) {
             return redirect()->back()
                 ->withInput()
                 ->withErrors([
@@ -120,7 +147,20 @@ class StockLoanController extends Controller
                 ]);
         }
 
-        // 🚨 Cegah pinjam ke toko sendiri
+        // ✅ FIX: Cek apakah from_store_id valid (user punya akses)
+        $hasAccessToFromStore = Store::where('id', $data['from_store_id'])
+            ->whereHas('users', function($q) use ($user) {
+                $q->where('users.id', $user->id);
+            })->exists();
+
+        if (!$hasAccessToFromStore) {
+            return redirect()->back()
+                ->withInput()
+                ->withErrors([
+                    'from_store_id' => 'Anda tidak memiliki akses ke toko sumber ini.'
+                ]);
+        }
+
         if ($data['from_store_id'] == $store->id) {
             return redirect()->back()
                 ->withInput()
@@ -129,15 +169,13 @@ class StockLoanController extends Controller
                 ]);
         }
 
-        // ✅ Buat record pinjaman stok
         $loan = StockLoan::create([
             'from_store_id' => $data['from_store_id'],
-            'to_store_id'   => $store->id, // isi otomatis, bukan dari input user
+            'to_store_id'   => $store->id,
             'loan_date'     => $data['loan_date'],
             'notes'         => $data['notes'] ?? null,
         ]);
 
-        // ✅ Simpan detail item pinjaman
         foreach ($data['items'] as $item) {
             StockLoanItem::create([
                 'stock_loan_id' => $loan->id,
@@ -150,26 +188,28 @@ class StockLoanController extends Controller
             ->with('success', 'Peminjaman stok berhasil dibuat');
     }
 
-
     public function approve($id)
     {
         $loan = StockLoan::with('items.product')->findOrFail($id);
 
-        $userStore = Store::where('user_id', Auth::id())->first();
-        if ($loan->from_store_id !== $userStore->id) {
+        // ✅ FIX: Gunakan many-to-many untuk authorization
+        $userStore = Store::whereHas('users', function($q) {
+            $q->where('users.id', Auth::id());
+        })->first();
+
+        if (!$userStore || $loan->from_store_id !== $userStore->id) {
             abort(403, 'Anda tidak berhak approve pinjaman ini.');
         }
 
+        // ... rest of approve logic remains the same
         foreach ($loan->items as $item) {
             $product = $item->product;
 
-            // ✅ Cek apakah produk sudah ada di toko penerima
             $targetProduct = Product::where('sku', $product->sku)
                 ->where('store_id', $loan->to_store_id)
                 ->first();
 
-            if (! $targetProduct) {
-                // 🔥 Jika belum ada, buat duplikasi produk di toko penerima
+            if (!$targetProduct) {
                 $targetProduct = Product::create([
                     'sku'         => $product->sku,
                     'name'        => $product->name,
@@ -181,10 +221,9 @@ class StockLoanController extends Controller
                 ]);
             }
 
-            // stok keluar dari store pemberi
             Stock::create([
                 'product_id'  => $item->product_id,
-                'store_id'    => $loan->from_store_id,
+                'user_id'     => Auth::id(), // ✅ Jangan lupa user_id
                 'type'        => 'out',
                 'quantity'    => $item->quantity,
                 'reference'   => 'Stock Loan #' . $loan->id,
@@ -195,7 +234,7 @@ class StockLoanController extends Controller
 
             Stock::create([
                 'product_id'  => $targetProduct->id,
-                'store_id'    => $loan->to_store_id,
+                'user_id'     => Auth::id(), // ✅ Jangan lupa user_id
                 'type'        => 'in',
                 'quantity'    => $item->quantity,
                 'reference'   => 'Stock Loan #' . $loan->id,
@@ -205,24 +244,26 @@ class StockLoanController extends Controller
             ]);
         }
 
-        $loan->status = 'approved'; // ⚡️ jangan pakai 'returned'
+        $loan->status = 'approved';
         $loan->save();
 
         return redirect()->back()->with('success', 'Pinjaman stok berhasil diterima.');
     }
 
-
-
     public function reject($id)
     {
         $loan = StockLoan::findOrFail($id);
 
-        $userStore = Store::where('user_id', Auth::id())->first();
-        if ($loan->to_store_id !== $userStore->id) {
-            abort(403);
+        // ✅ FIX: Gunakan many-to-many
+        $userStore = Store::whereHas('users', function($q) {
+            $q->where('users.id', Auth::id());
+        })->first();
+
+        if (!$userStore || $loan->from_store_id !== $userStore->id) {
+            abort(403, 'Anda tidak berhak menolak pinjaman ini.');
         }
 
-        $loan->status = 'cancelled';
+        $loan->status = 'rejected';
         $loan->save();
 
         return redirect()->back()->with('success', 'Pinjaman stok ditolak.');
@@ -232,33 +273,33 @@ class StockLoanController extends Controller
     {
         $loan = StockLoan::with('items.product')->findOrFail($id);
 
-        // ✅ Validasi: hanya toko peminjam yang bisa kembalikan
-        $userStore = Store::where('user_id', Auth::id())->first();
-        if ($loan->to_store_id !== $userStore->id) {
+        // ✅ FIX: Gunakan many-to-many
+        $userStore = Store::whereHas('users', function($q) {
+            $q->where('users.id', Auth::id());
+        })->first();
+
+        if (!$userStore || $loan->to_store_id !== $userStore->id) {
             abort(403, 'Anda tidak berhak mengembalikan pinjaman ini.');
         }
 
-        // 🚨 Cegah pengembalian dobel
         if ($loan->status === 'returned') {
             return back()->with('error', 'Pinjaman ini sudah dikembalikan sebelumnya.');
         }
 
         foreach ($loan->items as $item) {
-            // Produk di toko peminjam
             $borrowedProduct = Product::where('sku', $item->product->sku)
                 ->where('store_id', $loan->to_store_id)
                 ->first();
 
-            // Produk di toko pemberi
-            $originalProduct = $item->product; // sudah sesuai dengan from_store
+            $originalProduct = $item->product;
 
-            if (! $borrowedProduct || ! $originalProduct) {
+            if (!$borrowedProduct || !$originalProduct) {
                 return back()->with('error', 'Produk tidak ditemukan untuk proses pengembalian.');
             }
 
-            // 1️⃣ Stok keluar dari toko peminjam
             Stock::create([
                 'product_id'  => $borrowedProduct->id,
+                'user_id'     => Auth::id(), // ✅ Jangan lupa user_id
                 'type'        => 'out',
                 'quantity'    => $item->quantity,
                 'reference'   => 'Return Loan #' . $loan->id,
@@ -267,9 +308,9 @@ class StockLoanController extends Controller
                 'source_id'   => $loan->id,
             ]);
 
-            // 2️⃣ Stok masuk ke toko pemberi
             Stock::create([
                 'product_id'  => $originalProduct->id,
+                'user_id'     => Auth::id(), // ✅ Jangan lupa user_id
                 'type'        => 'in',
                 'quantity'    => $item->quantity,
                 'reference'   => 'Return Loan #' . $loan->id,
@@ -279,7 +320,6 @@ class StockLoanController extends Controller
             ]);
         }
 
-        // Update status loan
         $loan->status = 'returned';
         $loan->save();
 

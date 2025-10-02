@@ -12,13 +12,9 @@ class StockController extends Controller
     public function index()
     {
         // Ambil semua stok hanya untuk produk milik store user login
-        $stocks = Stock::with([
-                'product',
-                'product.store.user',
-                'user'  // <- tambah ini
-            ])
-            ->whereHas('product.store', function ($q) {
-                $q->where('user_id', auth()->id());
+        $stocks = Stock::with(['product', 'user'])
+            ->whereHas('product.store.users', function ($q) {
+                $q->where('users.id', auth()->id());
             })
             ->latest()
             ->get();
@@ -31,8 +27,8 @@ class StockController extends Controller
     public function adjustForm()
     {
         // Ambil produk milik user login
-        $products = Product::whereHas('store', function ($q) {
-            $q->where('user_id', auth()->id());
+        $products = Product::whereHas('store.users', function ($q) {
+            $q->where('users.id', auth()->id());
         })->get();
 
         if ($products->isEmpty()) {
@@ -55,10 +51,10 @@ class StockController extends Controller
             'note'       => 'nullable|string',
         ]);
 
-        // 🔒 Pastikan produk milik user login
+        // ✅ FIX: Gunakan relasi many-to-many yang benar
         $product = Product::where('id', $request->product_id)
-            ->whereHas('store', function ($q) {
-                $q->where('user_id', auth()->id());
+            ->whereHas('store.users', function ($q) {
+                $q->where('users.id', auth()->id()); // Check melalui pivot table
             })
             ->firstOrFail();
 

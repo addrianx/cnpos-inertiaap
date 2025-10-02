@@ -8,7 +8,7 @@
     <!-- 🔍 Search & Per Page -->
     <div class="row mb-2 g-2">
       <!-- Filter -->
-      <div class="col-12 col-md-auto">
+      <!-- <div class="col-12 col-md-auto">
         <div class="d-flex align-items-center">
           <label class="me-2">Tampilkan</label>
           <select v-model.number="perPage" class="form-select w-auto">
@@ -19,7 +19,7 @@
           </select>
           <span class="ms-2">item per halaman</span>
         </div>
-      </div>
+      </div> -->
 
       <!-- Search -->
       <div class="col-12 col-md">

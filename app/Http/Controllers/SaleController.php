@@ -9,24 +9,25 @@ use App\Models\Store;
 use App\Models\Stock;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
-use App\Traits\PaymentValidationTrait; // ✅ import trait
+use App\Traits\PaymentValidationTrait;
 
 class SaleController extends Controller
 {
-    use PaymentValidationTrait; // ✅ pakai trait
+    use PaymentValidationTrait;
 
-    /** 
-     * Daftar semua transaksi milik store user login 
-     */
     public function index()
     {
-        $store = Store::where('user_id', auth()->id())->first();
+        // ✅ FIX: Gunakan many-to-many
+        $store = Store::whereHas('users', function($q) {
+            $q->where('users.id', auth()->id());
+        })->first();
+        
         if (!$store) {
             return redirect()->route('stores.create')
                 ->with('error', 'Anda belum memiliki toko, buat toko terlebih dahulu sebelum melihat daftar penjualan.');
         }
 
-        $sales = Sale::with('items.product')
+        $sales = Sale::with(['items.product', 'user']) // ← TAMBAH INI
             ->where('store_id', $store->id)
             ->latest()
             ->get();
@@ -36,12 +37,13 @@ class SaleController extends Controller
         ]);
     }
 
-    /** 
-     * Halaman buat penjualan baru 
-     */
     public function create()
     {
-        $store = Store::where('user_id', auth()->id())->first();
+        // ✅ FIX: Gunakan many-to-many
+        $store = Store::whereHas('users', function($q) {
+            $q->where('users.id', auth()->id());
+        })->first();
+        
         if (!$store) {
             return redirect()->route('stores.create')
                 ->with('error', 'Anda belum memiliki toko, buat toko terlebih dahulu sebelum menambahkan penjualan.');
@@ -61,9 +63,6 @@ class SaleController extends Controller
         ]);
     }
 
-    /** 
-     * Simpan transaksi penjualan 
-     */
     public function store(Request $request)
     {
         $request->validate([
@@ -75,7 +74,10 @@ class SaleController extends Controller
             'paid' => 'required|numeric',
         ]);
 
-        $store = Store::where('user_id', auth()->id())->firstOrFail();
+        // ✅ FIX: Gunakan many-to-many
+        $store = Store::whereHas('users', function($q) {
+            $q->where('users.id', auth()->id());
+        })->firstOrFail();
 
         DB::beginTransaction();
         try {
@@ -101,7 +103,6 @@ class SaleController extends Controller
             $discount = $request->discount ?? 0;
             $total = max($subtotal - $discount, 0);
 
-            // ✅ Validasi dibayar >= total
             $request->validate([
                 'paid' => 'gte:'.$total
             ], [
@@ -134,8 +135,10 @@ class SaleController extends Controller
                     'subtotal' => $lineSubtotal,
                 ]);
 
+                // ✅ FIX: Tambahkan user_id
                 Stock::create([
                     'product_id' => $product->id,
+                    'user_id'    => auth()->id(),
                     'type' => 'out',
                     'quantity' => $item['quantity'],
                     'reference' => $sale->sale_code,
@@ -155,5 +158,4 @@ class SaleController extends Controller
             ])->withInput();
         }
     }
-
 }

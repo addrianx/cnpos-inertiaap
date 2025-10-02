@@ -9,7 +9,7 @@
     <div class="row mb-2 g-2">
       <!-- Filter -->
       <div class="col-12 col-md-auto">
-        <div class="d-flex align-items-center">
+        <!-- <div class="d-flex align-items-center">
           <label class="me-2">Tampilkan</label>
           <select v-model.number="perPage" class="form-select w-auto">
             <option :value="5">5</option>
@@ -18,7 +18,7 @@
             <option :value="50">50</option>
           </select>
           <span class="ms-2">item per halaman</span>
-        </div>
+        </div> -->
       </div>
 
       <!-- Search -->
@@ -26,12 +26,11 @@
         <input
           type="text"
           v-model="search"
-          placeholder="Kode produk..."
+          placeholder="Cari kode invoice, user..."
           class="form-control w-100"
         />
       </div>
     </div>
-
 
     <!-- Jika kosong -->
     <div v-if="filteredSales.length === 0" class="alert alert-info">
@@ -46,6 +45,7 @@
             <th>ID</th>
             <th>Tanggal</th>
             <th>Kode Invoice</th>
+            <th>Kasir/User</th> <!-- ✅ TAMBAH KOLOM INI -->
             <th>Items</th>
             <th>Total</th>
           </tr>
@@ -55,6 +55,17 @@
             <td>{{ sale.id }}</td>
             <td>{{ new Date(sale.created_at).toLocaleString() }}</td>
             <td>{{ sale.sale_code }}</td>
+            <td>
+              <!-- ✅ TAMPILKAN USER -->
+              <div v-if="sale.user">
+                <strong>{{ sale.user.name }}</strong>
+                <br>
+                <small class="text-muted">{{ sale.user.email }}</small>
+              </div>
+              <div v-else class="text-muted">
+                <small>User tidak ditemukan</small>
+              </div>
+            </td>
             <td>
               <ul class="mb-0">
                 <li v-for="item in sale.items" :key="item.id">
@@ -105,13 +116,25 @@ const currentPage = ref(1)
 const perPage = ref(10)
 const search = ref('')
 
-// filter pelanggan / produk
+// filter dengan search yang lebih luas (termasuk user)
 const filteredSales = computed(() => {
   if (!search.value) return props.sales
+  
+  const searchLower = search.value.toLowerCase()
   return props.sales.filter(sale => {
-    return sale.sale_code
-      ? sale.sale_code.toLowerCase().includes(search.value.toLowerCase())
-      : false
+    // Cari di kode sale
+    const saleCodeMatch = sale.sale_code?.toLowerCase().includes(searchLower) || false
+    
+    // Cari di nama user
+    const userNameMatch = sale.user?.name?.toLowerCase().includes(searchLower) || false
+    const userEmailMatch = sale.user?.email?.toLowerCase().includes(searchLower) || false
+    
+    // Cari di nama produk
+    const productMatch = sale.items?.some(item => 
+      item.product?.name?.toLowerCase().includes(searchLower)
+    ) || false
+
+    return saleCodeMatch || userNameMatch || userEmailMatch || productMatch
   })
 })
 
@@ -127,32 +150,13 @@ const paginatedSales = computed(() => {
   return filteredSales.value.slice(start, end)
 })
 
-// 🔥 truncated pagination robust
-const visiblePages = computed(() => {
-  const pages = []
-
-  if (totalPages.value <= 5) {
-    for (let i = 1; i <= totalPages.value; i++) pages.push(i)
-    return pages
-  }
-
-  const delta = 2
-  let start = Math.max(2, currentPage.value - delta)
-  let end = Math.min(totalPages.value - 1, currentPage.value + delta)
-
-  if (currentPage.value - delta <= 1) end = 5
-  if (currentPage.value + delta >= totalPages.value) start = totalPages.value - 4
-
-  for (let i = start; i <= end; i++) pages.push(i)
-  return pages
-})
-
 // navigasi
-const goToPage = (page) => { if (page >= 1 && page <= totalPages.value) currentPage.value = page }
+const goToPage = (page) => { 
+  if (page >= 1 && page <= totalPages.value) currentPage.value = page 
+}
 const nextPage = () => goToPage(currentPage.value + 1)
 const prevPage = () => goToPage(currentPage.value - 1)
 
 // reset ke page 1 jika search / perPage berubah
 watch([search, perPage], () => { currentPage.value = 1 })
 </script>
-

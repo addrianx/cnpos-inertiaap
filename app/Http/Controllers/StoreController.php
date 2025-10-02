@@ -42,11 +42,19 @@ class StoreController extends Controller
         $request->validate([
             'name'    => 'required|string|max:255',
             'address' => 'required|string',
-            'user_ids' => 'array', // banyak user
+            'user_ids' => 'array',
             'user_ids.*' => 'exists:users,id',
         ]);
 
-        $store = Store::create($request->only('name', 'address'));
+        // Auto-set user_id dari user pertama yang dipilih atau user yang login
+        $user_id = !empty($request->user_ids) ? $request->user_ids[0] : auth()->id();
+        
+        $store = Store::create([
+            'name' => $request->name,
+            'address' => $request->address,
+            'user_id' => $user_id
+        ]);
+        
         if ($request->has('user_ids')) {
             $store->users()->sync($request->user_ids);
         }
