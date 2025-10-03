@@ -15,28 +15,13 @@
       <Link href="/stock-transfers/create" class="btn btn-primary">+ Transfer Stok</Link>
     </div>
 
-    <!-- 🔍 Search & Per Page -->
-    <div class="row mb-2 g-2">
-      <!-- Filter -->
-      <div class="col-12 col-md-auto">
-        <div class="d-flex align-items-center">
-          <label class="me-2">Tampilkan</label>
-          <select v-model.number="perPage" class="form-select w-auto">
-            <option :value="5">5</option>
-            <option :value="10">10</option>
-            <option :value="25">25</option>
-            <option :value="50">50</option>
-          </select>
-          <span class="ms-2">item per halaman</span>
-        </div>
-      </div>
-
-      <!-- Search -->
-      <div class="col-12 col-md">
+    <!-- 🔍 Search -->
+    <div class="row mb-3 g-2">
+      <div class="col-12 col-md-6">
         <input
           v-model="search"
           type="text"
-          class="form-control w-100"
+          class="form-control"
           placeholder="Cari produk, catatan, atau toko..."
         />
       </div>
@@ -77,19 +62,11 @@
       </table>
     </div>
 
-    <!-- 🔽 Pagination -->
+    <!-- 🔽 Pagination Sederhana -->
     <nav class="mt-3">
       <ul class="pagination justify-content-center">
         <li class="page-item" :class="{ disabled: currentPage === 1 }">
           <button class="page-link" @click="prevPage">&laquo;</button>
-        </li>
-
-        <li v-if="visiblePages[0] > 1" class="page-item">
-          <button class="page-link" @click="goToPage(1)">1</button>
-        </li>
-
-        <li v-if="visiblePages[0] > 2" class="page-item disabled">
-          <span class="page-link">...</span>
         </li>
 
         <li
@@ -100,14 +77,6 @@
           <button class="page-link" @click="goToPage(page)">
             {{ page }}
           </button>
-        </li>
-
-        <li v-if="visiblePages[visiblePages.length - 1] < totalPages - 1" class="page-item disabled">
-          <span class="page-link">...</span>
-        </li>
-
-        <li v-if="visiblePages[visiblePages.length - 1] < totalPages" class="page-item">
-          <button class="page-link" @click="goToPage(totalPages)">{{ totalPages }}</button>
         </li>
 
         <li class="page-item" :class="{ disabled: currentPage === totalPages }">
@@ -124,7 +93,7 @@ import { ref, computed, watch } from 'vue'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Swal from 'sweetalert2'
 
-const props = defineProps({ transfers: Array }) // array transfer stok
+const props = defineProps({ transfers: Array })
 
 // Fungsi untuk menampilkan informasi stock transfer
 const showInfo = () => {
@@ -141,27 +110,19 @@ const showInfo = () => {
             <li>Mengoptimalkan persediaan produk di semua cabang</li>
             <li>Mencatat riwayat perpindahan barang</li>
           </ul>
-          
-          <h6>Cara Kerja:</h6>
-          <ol>
-            <li>Pilih toko pengirim dan penerima</li>
-            <li>Tentukan produk dan jumlah yang akan ditransfer</li>
-            <li>Sistem akan mengurangi stok di toko pengirim</li>
-            <li>Dan menambah stok di toko penerima</li>
-          </ol>
         </div>
       </div>
     `,
     icon: 'info',
     confirmButtonText: 'Mengerti',
     confirmButtonColor: '#3085d6',
-    width: '600px'
+    width: '500px'
   })
 }
 
 // state
 const currentPage = ref(1)
-const perPage = ref(10)
+const perPage = ref(20) // Fixed 20 items per page
 const search = ref('')
 
 // filter by search
@@ -186,27 +147,65 @@ const paginatedTransfers = computed(() => {
   return filteredTransfers.value.slice(start, end)
 })
 
-// truncated pagination
+// simplified pagination
 const visiblePages = computed(() => {
   const pages = []
-  if (totalPages.value <= 5) {
+  const maxVisible = 5
+  
+  if (totalPages.value <= maxVisible) {
     for (let i = 1; i <= totalPages.value; i++) pages.push(i)
-    return pages
+  } else {
+    let start = Math.max(1, currentPage.value - 2)
+    let end = Math.min(totalPages.value, start + maxVisible - 1)
+    
+    if (end === totalPages.value) {
+      start = totalPages.value - maxVisible + 1
+    }
+    
+    for (let i = start; i <= end; i++) pages.push(i)
   }
-  const delta = 2
-  let start = Math.max(2, currentPage.value - delta)
-  let end = Math.min(totalPages.value - 1, currentPage.value + delta)
-  if (currentPage.value - delta <= 1) end = 5
-  if (currentPage.value + delta >= totalPages.value) start = totalPages.value - 4
-  for (let i = start; i <= end; i++) pages.push(i)
+  
   return pages
 })
 
 // navigasi
-const goToPage = (page) => { if (page >= 1 && page <= totalPages.value) currentPage.value = page }
+const goToPage = (page) => { 
+  if (page >= 1 && page <= totalPages.value) currentPage.value = page 
+}
 const nextPage = () => goToPage(currentPage.value + 1)
 const prevPage = () => goToPage(currentPage.value - 1)
 
-// reset ke halaman 1 jika perPage atau search berubah
-watch([perPage, search], () => { currentPage.value = 1 })
+// reset ke halaman 1 jika search berubah
+watch(search, () => { 
+  currentPage.value = 1 
+})
 </script>
+
+<style scoped>
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.text-nowrap {
+  white-space: nowrap;
+}
+
+.table-dark th {
+  position: sticky;
+  top: 0;
+  background: #343a40;
+  z-index: 10;
+}
+
+/* Optimasi untuk mobile */
+@media (max-width: 768px) {
+  .table {
+    font-size: 0.875rem;
+  }
+  
+  .btn {
+    font-size: 0.875rem;
+  }
+}
+</style>

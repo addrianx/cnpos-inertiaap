@@ -66,15 +66,19 @@ class StoreController extends Controller
      */
     public function edit(Store $store)
     {
-        $store->load('users');
+        $store->load(['users' => function($query) {
+            $query->with('roles'); // Load roles relationship
+        }]);
         
         // Ambil user yang belum memiliki toko ATAU sudah menjadi bagian dari toko ini
         $users = User::where(function($query) use ($store) {
             $query->whereDoesntHave('stores')
-                  ->orWhereHas('stores', function($q) use ($store) {
-                      $q->where('stores.id', $store->id);
-                  });
-        })->get();
+                ->orWhereHas('stores', function($q) use ($store) {
+                    $q->where('stores.id', $store->id);
+                });
+        })
+        ->with('roles') // ✅ LOAD RELATIONSHIP ROLES
+        ->get();
 
         return Inertia::render('Store/Edit', [
             'store' => $store,

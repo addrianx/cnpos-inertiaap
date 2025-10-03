@@ -85,18 +85,13 @@
       </table>
     </div>
 
-    <!-- 🔽 Pagination -->
+    <!-- 🔽 Pagination Sederhana -->
     <nav class="mt-3">
       <ul class="pagination justify-content-center">
         <li class="page-item" :class="{ disabled: currentPage === 1 }">
           <button class="page-link" @click="prevPage">&laquo;</button>
         </li>
-        <li v-if="visiblePages[0] > 1" class="page-item">
-          <button class="page-link" @click="goToPage(1)">1</button>
-        </li>
-        <li v-if="visiblePages[0] > 2" class="page-item disabled">
-          <span class="page-link">...</span>
-        </li>
+        
         <li
           v-for="page in visiblePages"
           :key="page"
@@ -106,14 +101,7 @@
             {{ page }}
           </button>
         </li>
-        <li v-if="visiblePages[visiblePages.length - 1] < totalPages - 1" class="page-item disabled">
-          <span class="page-link">...</span>
-        </li>
-        <li v-if="visiblePages[visiblePages.length - 1] < totalPages" class="page-item">
-          <button class="page-link" @click="goToPage(totalPages)">
-            {{ totalPages }}
-          </button>
-        </li>
+        
         <li class="page-item" :class="{ disabled: currentPage === totalPages }">
           <button class="page-link" @click="nextPage">&raquo;</button>
         </li>
@@ -137,7 +125,7 @@ const props = defineProps({
 
 // state
 const currentPage = ref(1)
-const perPage = ref(20)
+const perPage = ref(20) // Fixed 20 items per page
 const searchInput = ref('')
 const search = ref('')
 const filterType = ref('')
@@ -173,28 +161,15 @@ const showInfo = () => {
                 <td>✅ <strong>Tracking User</strong><br><small>Tahu siapa yang ubah</small></td>
                 <td>❌ <strong>Anonim</strong><br><small>Tidak ada accountability</small></td>
               </tr>
-              <tr>
-                <td>✅ <strong>Catatan & Alasan</strong><br><small>Setiap perubahan ada alasannya</small></td>
-                <td>❌ <strong>Tanpa Catatan</strong><br><small>Perubahan tanpa konteks</small></td>
-              </tr>
             </tbody>
           </table>
-
-          <h6>🎯 <strong>Manfaat Sistem Ini:</strong></h6>
-          <ul class="mb-3">
-            <li><strong>Transparansi Penuh:</strong> Setiap perubahan stok bisa dilacak</li>
-            <li><strong>Akuntabilitas:</strong> Tahu siapa, kapan, dan mengapa stok berubah</li>
-            <li><strong>Laporan Detail:</strong> Bisa analisis pola stok masuk/keluar</li>
-            <li><strong>Error Detection:</strong> Mudah menemukan kesalahan input</li>
-            <li><strong>Multi-sumber:</strong> Support transfer, pinjaman, adjustment</li>
-          </ul>
         </div>
       </div>
     `,
     icon: 'info',
     confirmButtonText: 'Mengerti',
     confirmButtonColor: '#3085d6',
-    width: '800px'
+    width: '700px'
   })
 }
 
@@ -217,18 +192,14 @@ const getTypeLabel = (type) => {
   return labels[type] || type
 }
 
-// ✅ PERBAIKAN: Fungsi untuk format jumlah berdasarkan tipe
 const formatQuantity = (stock) => {
   if (stock.type === 'out') {
-    // Untuk stok keluar, tampilkan sebagai negatif
     return `-${Math.abs(stock.quantity)}`
   } else {
-    // Untuk stok masuk dan adjustment, tampilkan sebagai positif
     return `+${stock.quantity}`
   }
 }
 
-// ✅ PERBAIKAN: Fungsi untuk class warna berdasarkan tipe
 const getQuantityClass = (stock) => {
   if (stock.type === 'out') {
     return 'text-danger fw-bold'
@@ -287,18 +258,24 @@ const paginatedStocks = computed(() => {
 
 const visiblePages = computed(() => {
   const pages = []
-  if (totalPages.value <= 5) {
+  const maxVisible = 5 // Jumlah halaman yang ditampilkan
+  
+  if (totalPages.value <= maxVisible) {
+    // Tampilkan semua halaman jika total halaman <= maxVisible
     for (let i = 1; i <= totalPages.value; i++) pages.push(i)
-    return pages
+  } else {
+    // Tampilkan halaman dengan ellipsis di tengah
+    let start = Math.max(1, currentPage.value - 2)
+    let end = Math.min(totalPages.value, start + maxVisible - 1)
+    
+    // Adjust start jika mendekati akhir
+    if (end === totalPages.value) {
+      start = totalPages.value - maxVisible + 1
+    }
+    
+    for (let i = start; i <= end; i++) pages.push(i)
   }
-  const delta = 2
-  let start = Math.max(2, currentPage.value - delta)
-  let end = Math.min(totalPages.value - 1, currentPage.value + delta)
-
-  if (currentPage.value - delta <= 1) end = 5
-  if (currentPage.value + delta >= totalPages.value) start = totalPages.value - 4
-
-  for (let i = start; i <= end; i++) pages.push(i)
+  
   return pages
 })
 
@@ -321,10 +298,9 @@ watch([filterType], () => {
   padding: 0.35em 0.65em;
 }
 
-/* ✅ Tambahan CSS untuk table no-wrap */
 .table-nowrap {
   white-space: nowrap;
-  min-width: 800px; /* Minimum width untuk table */
+  min-width: 800px;
 }
 
 .table-responsive {
@@ -335,7 +311,7 @@ watch([filterType], () => {
 /* Optimasi untuk mobile */
 @media (max-width: 768px) {
   .table-nowrap {
-    min-width: 1000px; /* Lebih lebar untuk mobile */
+    min-width: 1000px;
     font-size: 0.875rem;
   }
   
@@ -348,12 +324,10 @@ watch([filterType], () => {
   }
 }
 
-/* Pastikan semua cell tidak wrap */
 .text-nowrap {
   white-space: nowrap;
 }
 
-/* Header table tetap */
 .table-dark th {
   position: sticky;
   top: 0;

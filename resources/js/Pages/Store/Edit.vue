@@ -33,11 +33,11 @@
             ></textarea>
           </div>
 
-          <!-- Pilih User Manager -->
+          <!-- Pilih User -->
           <div class="mb-3">
-            <label class="form-label">User Manager</label>
+            <label class="form-label">User Toko</label>
             <div v-if="users.length > 0">
-              <div v-for="user in users" :key="user.id" class="form-check">
+              <div v-for="user in users" :key="user.id" class="form-check mb-2">
                 <input
                   type="checkbox"
                   class="form-check-input"
@@ -45,14 +45,23 @@
                   :value="user.id"
                   v-model="formStore.user_ids"
                 />
-                <label class="form-check-label" :for="'user-' + user.id">
-                  {{ user.name }} ({{ user.email }})
-                  <span v-if="isCurrentStoreUser(user.id)" class="badge bg-info ms-1">Manager Toko Ini</span>
+                <label class="form-check-label d-flex align-items-center gap-2" :for="'user-' + user.id">
+                  <div>
+                    <strong>{{ user.name }}</strong> ({{ user.email }})
+                  </div>
+                  <div class="d-flex gap-1">
+                    <span class="badge" :class="getRoleBadgeClass(getUserRoleId(user))">
+                      {{ getUserRoleName(getUserRoleId(user)) }}
+                    </span>
+                    <span v-if="isCurrentStoreUser(user.id)" class="badge bg-info">
+                      User Toko Ini
+                    </span>
+                  </div>
                 </label>
               </div>
             </div>
             <div v-else class="alert alert-warning">
-              Tidak ada user yang tersedia. Semua user sudah menjadi manager toko lain.
+              Tidak ada user yang tersedia.
             </div>
           </div>
 
@@ -68,11 +77,11 @@
 import { Link, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Swal from 'sweetalert2'
-import { reactive, computed } from 'vue'
+import { reactive } from 'vue'
 
 const props = defineProps({
-  store: Object, // data toko yang akan diedit
-  users: Array,  // untuk dropdown user
+  store: Object,
+  users: Array,
 })
 
 const formStore = reactive({
@@ -81,7 +90,30 @@ const formStore = reactive({
   user_ids: props.store.users?.map(u => u.id) || [],
 })
 
-// Fungsi untuk mengecek apakah user adalah bagian dari toko ini
+// ✅ PERBAIKAN: Ambil role_id dari relationship
+const getUserRoleId = (user) => {
+  // Akses role melalui relationship
+  return user.roles?.[0]?.id || null
+}
+
+const getUserRoleName = (roleId) => {
+  const roles = {
+    1: 'Admin',
+    2: 'Manager', 
+    3: 'Kasir'
+  }
+  return roles[roleId] || 'Unknown'
+}
+
+const getRoleBadgeClass = (roleId) => {
+  const classes = {
+    1: 'bg-danger',
+    2: 'bg-primary',  
+    3: 'bg-secondary'
+  }
+  return classes[roleId] || 'bg-dark'
+}
+
 const isCurrentStoreUser = (userId) => {
   return props.store.users?.some(user => user.id === userId) || false
 }
