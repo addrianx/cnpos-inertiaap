@@ -20,7 +20,15 @@ class Product extends Model
         'created_by',
     ];
 
-    protected $appends = ['stock'];
+    // ✅ TAMBAHKAN APPENDS YANG DIPERLUKAN
+    protected $appends = [
+        'stock', 
+        'formatted_price', 
+        'final_price', 
+        'total_stock', 
+        'has_stock', 
+        'description'
+    ];
 
     public function stocks()
     {
@@ -34,6 +42,33 @@ class Product extends Model
         $adjustment = $this->stocks()->where('type', 'adjustment')->sum('quantity');
 
         return $in + $adjustment - $out;
+    }
+
+    // ✅ ACCESSOR BARU YANG DIPERLUKAN
+    public function getFormattedPriceAttribute()
+    {
+        return number_format($this->price, 0, ',', '.');
+    }
+
+    public function getFinalPriceAttribute()
+    {
+        $discountAmount = $this->price * ($this->discount / 100);
+        return $this->price - $discountAmount;
+    }
+
+    public function getTotalStockAttribute()
+    {
+        return $this->stock; // Gunakan existing stock attribute
+    }
+
+    public function getHasStockAttribute()
+    {
+        return $this->total_stock > 0;
+    }
+
+    public function getDescriptionAttribute()
+    {
+        return "SKU: {$this->sku}";
     }
     
     public function store()
@@ -51,7 +86,6 @@ class Product extends Model
         return $this->belongsTo(Category::class);
     }
     
-    // ✅ TAMBAH: Relasi ke user yang membuat produk
     public function createdBy()
     {
         return $this->belongsTo(User::class, 'created_by');

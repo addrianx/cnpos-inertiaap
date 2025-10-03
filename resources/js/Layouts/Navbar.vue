@@ -97,6 +97,16 @@
             Users
           </Link>
         </li>
+        
+        <li>
+          <Link
+            class="nav-link text-white"
+            href="/pc-assembly"
+            :class="{ active: currentUrl.startsWith('/pc-assembly') }"
+          >
+            Rakitan PC
+          </Link>
+        </li>
 
         <!-- Tombol Logout -->
         <li class="mt-3 px-2">

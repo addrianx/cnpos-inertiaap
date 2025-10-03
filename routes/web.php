@@ -16,6 +16,7 @@ use App\Http\Controllers\StoreController;
 use App\Http\Controllers\StockTransferController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\Auth\SetPasswordController;
+use App\Http\Controllers\PCAssemblyController;
 use App\Http\Controllers\UserController;
 
 use Inertia\Inertia;
@@ -40,6 +41,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/sales/create', [SaleController::class, 'create'])->name('sales.create');
     Route::post('/sales', [SaleController::class, 'store'])->name('sales.store');
     Route::post('/sales/{sale}/return', [SaleController::class, 'returnSale'])->name('sales.return');
+
+    // PC Assembly Routes
+    Route::get('/pc-assembly', [PCAssemblyController::class, 'create'])->name('pc-assembly.create');
+    Route::post('/pc-assembly', [PCAssemblyController::class, 'store'])->name('pc-assembly.store');
+    Route::get('/pc-assembly/history', [PCAssemblyController::class, 'history'])->name('pc-assembly.history');
+    Route::get('/pc-assembly/{assembly}', [PCAssemblyController::class, 'show'])->name('pc-assembly.show');
 
     // ✅ PERBAIKAN: SEMUA STOCK ROUTES DIPINDAHKAN KE DALAM MIDDLEWARE GROUP
     Route::middleware(['role:admin,manager'])->group(function () {
