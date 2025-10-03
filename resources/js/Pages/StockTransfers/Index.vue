@@ -1,7 +1,17 @@
 <template>
   <AppLayout>
     <div class="d-flex justify-content-between align-items-center mb-3">
-      <h2>Daftar Transfer Stok</h2>
+      <h2 class="d-flex align-items-center gap-2">
+        Daftar Transfer Stok
+        <button 
+          @click="showInfo" 
+          class="btn btn-sm btn-outline-info p-1 d-flex align-items-center justify-content-center"
+          style="width: 24px; height: 24px; border-radius: 50%;"
+          title="Klik untuk info"
+        >
+          <i class="fas fa-info" style="font-size: 12px;"></i>
+        </button>
+      </h2>
       <Link href="/stock-transfers/create" class="btn btn-primary">+ Transfer Stok</Link>
     </div>
 
@@ -31,7 +41,6 @@
         />
       </div>
     </div>
-
 
     <div class="table-responsive">
       <table class="table table-bordered table-striped text-nowrap">
@@ -113,8 +122,42 @@
 import { Link } from '@inertiajs/vue3'
 import { ref, computed, watch } from 'vue'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import Swal from 'sweetalert2'
 
 const props = defineProps({ transfers: Array }) // array transfer stok
+
+// Fungsi untuk menampilkan informasi stock transfer
+const showInfo = () => {
+  Swal.fire({
+    title: '📦 Tentang Transfer Stok',
+    html: `
+      <div class="text-start">
+        <p><strong>Transfer Stok</strong> adalah fitur untuk memindahkan produk antar toko dalam satu sistem.</p>
+        
+        <div class="mt-3">
+          <h6>Fungsi Utama:</h6>
+          <ul class="mb-3">
+            <li>Memindahkan stok dari toko yang kelebihan ke toko yang kekurangan</li>
+            <li>Mengoptimalkan persediaan produk di semua cabang</li>
+            <li>Mencatat riwayat perpindahan barang</li>
+          </ul>
+          
+          <h6>Cara Kerja:</h6>
+          <ol>
+            <li>Pilih toko pengirim dan penerima</li>
+            <li>Tentukan produk dan jumlah yang akan ditransfer</li>
+            <li>Sistem akan mengurangi stok di toko pengirim</li>
+            <li>Dan menambah stok di toko penerima</li>
+          </ol>
+        </div>
+      </div>
+    `,
+    icon: 'info',
+    confirmButtonText: 'Mengerti',
+    confirmButtonColor: '#3085d6',
+    width: '600px'
+  })
+}
 
 // state
 const currentPage = ref(1)

@@ -17,7 +17,6 @@ class SaleController extends Controller
 
     public function index()
     {
-        // ✅ FIX: Gunakan many-to-many
         $store = Store::whereHas('users', function($q) {
             $q->where('users.id', auth()->id());
         })->first();
@@ -27,10 +26,15 @@ class SaleController extends Controller
                 ->with('error', 'Anda belum memiliki toko, buat toko terlebih dahulu sebelum melihat daftar penjualan.');
         }
 
-        $sales = Sale::with(['items.product', 'user']) // ← TAMBAH INI
+        $sales = Sale::with(['items.product', 'user'])
             ->where('store_id', $store->id)
             ->latest()
-            ->get();
+            ->get()
+            ->map(function ($sale) {
+                $sale->can_return = $sale->canBeReturned();
+                $sale->remaining_return_time = $sale->getRemainingReturnTime();
+                return $sale;
+            });
 
         return Inertia::render('Sale/Index', [
             'sales' => $sales,
@@ -156,6 +160,66 @@ class SaleController extends Controller
             return back()->withErrors([
                 'msg' => $e->getMessage()
             ])->withInput();
+        }
+    }
+
+    public function returnSale(Request $request, Sale $sale)
+    {
+        // Cek akses toko
+        $store = Store::whereHas('users', function($q) {
+            $q->where('users.id', auth()->id());
+        })->first();
+
+        if (!$store || $sale->store_id !== $store->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akses ditolak'
+            ], 403);
+        }
+
+        // Validasi bisa di-retur
+        if (!$sale->canBeReturned()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Penjualan ini tidak dapat di-retur. Batas waktu 3 hari telah habis.'
+            ], 422);
+        }
+
+        DB::beginTransaction();
+        try {
+            // Update status retur
+            $sale->update([
+                'is_returned' => true,
+                'returned_at' => now(),
+                'return_reason' => $request->reason,
+                'returned_by' => auth()->id(),
+            ]);
+
+            // Kembalikan stok untuk setiap item
+            foreach ($sale->items as $item) {
+                Stock::create([
+                    'product_id' => $item->product_id,
+                    'user_id'    => auth()->id(),
+                    'type' => 'in', // Stok masuk karena retur
+                    'quantity' => $item->quantity,
+                    'reference' => 'RETURN-' . $sale->sale_code,
+                    'note' => 'Retur penjualan ' . $sale->sale_code . ' - ' . ($request->reason ?? 'Tidak ada alasan'),
+                ]);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Retur penjualan berhasil. Stok telah dikembalikan.'
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal melakukan retur: ' . $e->getMessage()
+            ], 500);
         }
     }
 }

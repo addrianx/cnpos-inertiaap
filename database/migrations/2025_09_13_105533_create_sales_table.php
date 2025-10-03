@@ -21,6 +21,10 @@ return new class extends Migration
             $table->decimal('paid', 12, 2);
             $table->decimal('change', 12, 2)->default(0);
             $table->foreignId('store_id')->constrained()->onDelete('cascade');
+            $table->boolean('is_returned')->default(false);
+            $table->timestamp('returned_at')->nullable();
+            $table->text('return_reason')->nullable();
+            $table->foreignId('returned_by')->nullable()->constrained('users');
 
             // ✅ Tambahan
             $table->date('sale_date')->nullable(); // kalau kosong → default tanggal hari ini

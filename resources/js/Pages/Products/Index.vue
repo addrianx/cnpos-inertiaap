@@ -6,10 +6,21 @@
             <h2>Daftar Produk</h2>
 
             <div class="mt-2 mt-md-0">
-                <Link href="/products/create" class="btn btn-primary me-2 mb-2 mb-md-0">
+                <!-- Tombol Tambah hanya untuk Admin & Manager -->
+                <Link 
+                    v-if="canManageProducts" 
+                    href="/products/create" 
+                    class="btn btn-primary me-2 mb-2 mb-md-0"
+                >
                    Tambah
                 </Link>
-                <button class="btn btn-success me-2 mb-2 mb-md-0" @click="openManageCategory">
+                
+                <!-- Tombol Atur Kategori hanya untuk Admin & Manager -->
+                <button 
+                    v-if="canManageProducts" 
+                    class="btn btn-success me-2 mb-2 mb-md-0" 
+                    @click="openManageCategory"
+                >
                     Atur Kategori
                 </button>
             </div>
@@ -34,29 +45,36 @@
             </div>
         </div>
 
-
         <!-- Table Produk -->
         <div class="table-responsive">
             <table class="table table-bordered table-striped align-middle text-nowrap">
                 <thead class="table-dark">
                     <tr>
-                        <th>
-                        <input type="checkbox" v-model="selectAll" @change="toggleSelectAll">
+                        <!-- Checkbox hanya untuk Admin & Manager -->
+                        <th v-if="canManageProducts">
+                            <input type="checkbox" v-model="selectAll" @change="toggleSelectAll">
                         </th>
                         <th>Kode (SKU)</th>
                         <th>Nama</th>
-                        <th>Modal</th>
+                        
+                        <!-- Kolom Modal hanya untuk Admin & Manager -->
+                        <th v-if="canManageProducts">Modal</th>
+                        
                         <th>Harga Jual</th>
                         <th>Diskon</th>
                         <th>Stok</th>
-                        <th>Ditambahkan</th> <!-- ✅ KOLOM BARU -->
-                        <th>Aksi</th>
+                        
+                        <!-- Kolom Ditambahkan hanya untuk Admin & Manager -->
+                        <th v-if="canManageProducts">Ditambahkan</th>
+                        
+                        <!-- Kolom Aksi hanya untuk Admin & Manager -->
+                        <th v-if="canManageProducts">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
                     <!-- Loader khusus di tabel -->
                    <tr v-if="tableLoading">
-                        <td colspan="9" class="text-center py-4"> <!-- ✅ Update colspan -->
+                        <td :colspan="getColspanCount" class="text-center py-4">
                             <div class="spinner-border text-primary" role="status">
                                 <span class="visually-hidden">Loading...</span>
                             </div>
@@ -66,73 +84,82 @@
 
                     <!-- Data produk -->
                     <tr v-else-if="paginatedProducts.length === 0">
-                        <td colspan="9" class="text-center text-muted py-4"> <!-- ✅ Update colspan -->
+                        <td :colspan="getColspanCount" class="text-center text-muted py-4">
                             Tidak ada produk.
                         </td>
                     </tr>
 
                     <tr v-else v-for="product in paginatedProducts" :key="product.id">
-                      <td>
+                      <!-- Checkbox hanya untuk Admin & Manager -->
+                      <td v-if="canManageProducts">
                         <input type="checkbox" v-model="selectedProducts" :value="product.id">
-                    </td>
-                    <td>{{ product.sku }}</td>
-                    <td>{{ product.name }}</td>
-                    
-                    <!-- Harga Modal -->
-                    <td class="text-center">
-                    <!-- Jika belum ditampilkan -->
-                    <span v-if="!product.showCost" @click="toggleCost(product)" style="cursor:pointer">
-                        <i class="bi bi-eye text-primary"></i>
-                    </span>
+                      </td>
+                      
+                      <td>{{ product.sku }}</td>
+                      <td>{{ product.name }}</td>
+                      
+                      <!-- Harga Modal hanya untuk Admin & Manager -->
+                      <td v-if="canManageProducts" class="text-center">
+                        <!-- Jika belum ditampilkan -->
+                        <span v-if="!product.showCost" @click="toggleCost(product)" style="cursor:pointer">
+                            <i class="bi bi-eye text-primary"></i>
+                        </span>
 
-                    <!-- Jika sudah ditampilkan -->
-                    <span v-else>
-                        Rp {{ Number(product.cost).toLocaleString() }}
-                        <i class="bi bi-eye-slash text-danger ms-2" style="cursor:pointer" @click="toggleCost(product)"></i>
-                    </span>
-                    </td>
+                        <!-- Jika sudah ditampilkan -->
+                        <span v-else>
+                            Rp {{ Number(product.cost).toLocaleString() }}
+                            <i class="bi bi-eye-slash text-danger ms-2" style="cursor:pointer" @click="toggleCost(product)"></i>
+                        </span>
+                      </td>
 
-                    <td>Rp {{ Number(product.price).toLocaleString() }}</td>
-                    <td>{{ product.discount }}%</td>
-                    <td>
-                        {{
-                        product.stocks
-                            ? product.stocks.reduce((total, s) => {
-                                if (s.type === 'in') return total + s.quantity
-                                if (s.type === 'out') return total - s.quantity
-                                if (s.type === 'adjustment') return total + s.quantity
-                                return total
-                            }, 0)
-                            : 0
-                        }}
-                    </td>
-                    <td>
-                        <div v-if="product.created_by">
-                            <div class="fw-semibold">{{ product.created_by.name }}</div>
-                            <small class="text-muted">
-                                {{ formatDate(product.created_at) }}
-                            </small>
-                        </div>
-                        <div v-else class="text-muted">
-                            <small>-</small>
-                        </div>
-                    </td>
-                    <td>
-                        <Link :href="`/products/${product.id}/edit`" class="btn btn-sm btn-warning me-2">
-                        Edit
-                        </Link>
-                        <button class="btn btn-sm btn-danger" @click="confirmDelete(product.id)">
-                        Hapus
-                        </button>
-                    </td>
+                      <td>Rp {{ Number(product.price).toLocaleString() }}</td>
+                      <td>{{ product.discount }}%</td>
+                      <td>
+                          {{
+                          product.stocks
+                              ? product.stocks.reduce((total, s) => {
+                                  if (s.type === 'in') return total + s.quantity
+                                  if (s.type === 'out') return total - s.quantity
+                                  if (s.type === 'adjustment') return total + s.quantity
+                                  return total
+                              }, 0)
+                              : 0
+                          }}
+                      </td>
+                      
+                      <!-- Kolom Ditambahkan hanya untuk Admin & Manager -->
+                      <td v-if="canManageProducts">
+                          <div v-if="product.created_by">
+                              <div class="fw-semibold">{{ product.created_by.name }}</div>
+                              <small class="text-muted">
+                                  {{ formatDate(product.created_at) }}
+                              </small>
+                          </div>
+                          <div v-else class="text-muted">
+                              <small>-</small>
+                          </div>
+                      </td>
+                      
+                      <!-- Kolom Aksi hanya untuk Admin & Manager -->
+                      <td v-if="canManageProducts">
+                          <Link :href="`/products/${product.id}/edit`" class="btn btn-sm btn-warning me-2">
+                            Edit
+                          </Link>
+                          <button class="btn btn-sm btn-danger" @click="confirmDelete(product.id)">
+                            Hapus
+                          </button>
+                      </td>
                     </tr>
-
                 </tbody>
             </table>
+            
+            <!-- Tombol Bulk Delete hanya untuk Admin & Manager -->
             <button 
+                v-if="canManageProducts"
                 class="btn btn-danger me-2" 
                 :disabled="selectedProducts.length === 0"
-                @click="confirmDeleteMultiple">
+                @click="confirmDeleteMultiple"
+            >
                 Hapus Terpilih ({{ selectedProducts.length }})
             </button>
         </div>
@@ -170,8 +197,8 @@
             </ul>
         </nav>
 
-        <!-- Modal Manage Kategori -->
-        <div v-if="showCategoryModal" class="modal fad modal-categories show d-block" tabindex="-1">
+        <!-- Modal Manage Kategori hanya untuk Admin & Manager -->
+        <div v-if="showCategoryModal && canManageProducts" class="modal fad modal-categories show d-block" tabindex="-1">
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
                 <div class="modal-header">
@@ -204,8 +231,6 @@
                 </div>
             </div>
         </div>
-
-
     </AppLayout>
 </template>
 
@@ -217,12 +242,15 @@
     } from 'vue'
     import {
         Link,
-        router
+        router,
+        usePage
     } from '@inertiajs/vue3'
     import AppLayout from '@/Layouts/AppLayout.vue'
     import Swal from 'sweetalert2'
     import axios from 'axios'
     import { startLoading, stopLoading } from '@/Stores/useLoading'
+
+    const page = usePage()
 
     const props = defineProps({
         products: Array,
@@ -231,6 +259,26 @@
             type: Object,
             default: () => ({})
         }
+    })
+
+    // ✅ COMPUTED: Cek apakah user bisa manage products (Admin atau Manager)
+    const canManageProducts = computed(() => {
+        const userRole = page.props.auth?.user?.role_id
+        // Asumsi: role_id 1 = Admin, role_id 2 = Manager, role_id 3 = Kasir
+        return userRole === 1 || userRole === 2
+    })
+
+    // ✅ COMPUTED: Hitung jumlah kolom berdasarkan role
+    const getColspanCount = computed(() => {
+        // Base columns untuk Kasir: SKU, Nama, Harga Jual, Diskon, Stok = 5 columns
+        let count = 5
+        
+        // Tambahan untuk Admin & Manager
+        if (canManageProducts.value) {
+            count += 4 // Checkbox, Modal, Ditambahkan, Aksi
+        }
+        
+        return count
     })
 
     // ✅ TAMBAH: Fungsi format tanggal
@@ -268,8 +316,7 @@
                 return (
                     p.name.toLowerCase().includes(query) ||
                     p.sku.toLowerCase().includes(query) ||
-                    categoryName.includes(query) ||
-                    createdByName.includes(query) // ✅ Bisa search by nama pembuat
+                    categoryName.includes(query)
                 )
         })
     }
@@ -280,7 +327,6 @@
 
     return list
     })
-
 
     // PAGINATTION SECTION
     const totalPages = computed(() => Math.ceil(filteredProducts.value.length / perPage.value) || 1)
@@ -320,7 +366,6 @@
       tableLoading.value = false
     })
 
-
     // CATEGORI SECTION CODE
     // daftar kategori yang sudah diurutkan A-Z
     const sortedCategories = computed(() => {
@@ -358,6 +403,10 @@
     }
 
     const openManageCategory = () => {
+        if (!canManageProducts.value) {
+            Swal.fire('Akses Ditolak', 'Anda tidak memiliki akses untuk mengelola kategori', 'warning')
+            return
+        }
         showCategoryModal.value = true
     }
 
@@ -405,7 +454,6 @@
             }
         })
     }
-
 
     const confirmDelete = (id) => {
     Swal.fire({
@@ -497,8 +545,6 @@
     const toggleCost = (product) => {
     product.showCost = !product.showCost
     }
-
-
 </script>
 
 <style>

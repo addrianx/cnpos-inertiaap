@@ -9,11 +9,12 @@
         POS Toko
       </div>
       <ul class="list-unstyled sidebar-nav">
+        <!-- Menu untuk semua role -->
         <li>
           <Link
             class="nav-link text-white"
             href="/dashboard"
-            :class="{ active: $page.url.startsWith('/dashboard') }"
+            :class="{ active: currentUrl.startsWith('/dashboard') }"
           >
             Dashboard
           </Link>
@@ -22,7 +23,7 @@
           <Link
             class="nav-link text-white"
             href="/products"
-            :class="{ active: $page.url.startsWith('/products') }"
+            :class="{ active: currentUrl.startsWith('/products') }"
           >
             Produk
           </Link>
@@ -30,64 +31,70 @@
         <li>
           <Link
             class="nav-link text-white"
-            href="/stock"
-            :class="{ active: /^\/stock(\/|$)/.test($page.url) }"
-          >
-            Stok
-          </Link>
-        </li>
-        <li>
-          <Link
-            class="nav-link text-white"
-            href="/stock-loan"
-            :class="{ active: /^\/stock-loan(\/|$)/.test($page.url) }"
-          >
-            Pinjam Stock
-          </Link>
-        </li>
-        <li>
-          <Link
-            class="nav-link text-white"
-            href="/stock-transfers"
-            :class="{ active: /^\/stock-transfers(\/|$)/.test($page.url) }"
-          >
-            Stok Transfer
-          </Link>
-        </li>
-        <li>
-          <Link
-            class="nav-link text-white"
             href="/sales"
-            :class="{ active: $page.url.startsWith('/sales') }"
+            :class="{ active: currentUrl.startsWith('/sales') }"
           >
             Penjualan
           </Link>
         </li>
-        <li v-if="$page.props.auth.user.roles.some(role => role.name === 'admin')">
+
+        <!-- Menu hanya untuk Admin & Manager -->
+        <template v-if="canAccessManagement">
+          <li>
+            <Link
+              class="nav-link text-white"
+              href="/stock"
+              :class="{ active: /^\/stock(\/|$)/.test(currentUrl) }"
+            >
+              Stok
+            </Link>
+          </li>
+          <li>
+            <Link
+              class="nav-link text-white"
+              href="/stock-loan"
+              :class="{ active: /^\/stock-loan(\/|$)/.test(currentUrl) }"
+            >
+              Pinjam Stock
+            </Link>
+          </li>
+          <li>
+            <Link
+              class="nav-link text-white"
+              href="/stock-transfers"
+              :class="{ active: /^\/stock-transfers(\/|$)/.test(currentUrl) }"
+            >
+              Stok Transfer
+            </Link>
+          </li>
+          <li>
+            <Link
+              class="nav-link text-white"
+              href="/reports"
+              :class="{ active: currentUrl.startsWith('/reports') }"
+            >
+              Laporan
+            </Link>
+          </li>
+        </template>
+
+        <!-- Menu hanya untuk Admin -->
+        <li v-if="isAdmin">
           <Link
             class="nav-link text-white"
             href="/stores"
-            :class="{ active: $page.url.startsWith('/stores') }"
+            :class="{ active: currentUrl.startsWith('/stores') }"
           >
             Toko
           </Link>
         </li>
-        <li v-if="$page.props.auth.user.roles.some(role => role.name === 'admin')">
+        <li v-if="isAdmin">
           <Link
             class="nav-link text-white"
             href="/users"
-            :class="{ active: $page.url.startsWith('/users') }"
+            :class="{ active: currentUrl.startsWith('/users') }"
           >
-            👥 Users
-          </Link>
-        </li>
-        <li>
-          <Link
-            class="nav-link text-white"
-            href="/reports"
-            :class="{ active: $page.url.startsWith('/reports') }"
-          >
-            Laporan
+            Users
           </Link>
         </li>
 
@@ -109,7 +116,7 @@
 
       <!-- nama user -->
       <div class="fw-bold">
-        👤 {{ $page.props.auth?.user?.name || 'Guest' }}
+        👤 {{ userName }} <span class="badge bg-light text-dark ms-1">{{ userRoleName }}</span>
       </div>
     </div>
 
@@ -123,11 +130,75 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { Link, router } from '@inertiajs/vue3'
+import { ref, computed, onMounted } from 'vue'
+import { Link, router, usePage } from '@inertiajs/vue3'
 import Swal from 'sweetalert2'
 
+const page = usePage()
 const isOpen = ref(false)
+
+// Debug: Tampilkan semua props yang tersedia
+onMounted(() => {
+  console.log('=== ALL PAGE PROPS ===', page.props)
+  console.log('=== AUTH DATA ===', page.props.auth)
+  console.log('=== USER DATA ===', page.props.auth?.user)
+})
+
+// Gunakan usePage() untuk mengakses data
+const user = computed(() => {
+  return page.props.auth?.user || {}
+})
+
+const currentUrl = computed(() => {
+  return page.url || '/'
+})
+
+const userName = computed(() => {
+  return user.value?.name || 'Guest'
+})
+
+// Ambil role_id dari user - gunakan computed untuk reactivity
+const userRoleId = computed(() => {
+  const roleId = user.value?.role_id
+  console.log('User Role ID:', roleId) // Debug
+  return roleId || null
+})
+
+const userRoleName = computed(() => {
+  const roles = {
+    1: 'Admin',
+    2: 'Manager', 
+    3: 'Kasir'
+  }
+  const roleName = roles[userRoleId.value] || 'Guest'
+  console.log('User Role Name:', roleName) // Debug
+  return roleName
+})
+
+const isAdmin = computed(() => {
+  const admin = userRoleId.value === 1
+  console.log('Is Admin:', admin) // Debug
+  return admin
+})
+
+const isManager = computed(() => {
+  const manager = userRoleId.value === 2
+  console.log('Is Manager:', manager) // Debug
+  return manager
+})
+
+const isCashier = computed(() => {
+  const cashier = userRoleId.value === 3
+  console.log('Is Cashier:', cashier) // Debug
+  return cashier
+})
+
+// Admin & Manager bisa akses management
+const canAccessManagement = computed(() => {
+  const canAccess = isAdmin.value || isManager.value
+  console.log('Can Access Management:', canAccess) // Debug
+  return canAccess
+})
 
 const toggleSidebar = () => {
   isOpen.value = !isOpen.value
@@ -152,7 +223,7 @@ const confirmLogout = () => {
 </script>
 
 <style scoped>
-/* Wrapper & Overlay */
+/* CSS tetap sama seperti sebelumnya */
 #wrapper {
   display: flex;
   width: 100%;
@@ -192,7 +263,6 @@ const confirmLogout = () => {
   flex: 1;
   transition: all 0.3s;
   margin-left: 0;
-  /* background-color: #575555; */
 }
 #wrapper.toggled #page-content-wrapper {
   margin-left: 250px;
@@ -200,22 +270,17 @@ const confirmLogout = () => {
 .sidebar-nav li {
   padding: 0;
 }
-/* Header utama tetap fixed */
 .page-header {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  height: 56px; /* tinggi header */
-  z-index: 1000; /* di atas konten */
+  height: 56px;
+  z-index: 1000;
 }
-
-/* Konten turun ke bawah header */
 #page-content-wrapper {
   margin-top: 56px;
 }
-
-/* Sidebar */
 #sidebar-wrapper {
   min-width: 250px;
   max-width: 250px;
@@ -223,16 +288,15 @@ const confirmLogout = () => {
   color: #fff;
   transition: all 0.3s;
   position: fixed;
-  top: 0;         /* penting: mulai dari atas, supaya header user gak nutup */
+  top: 0;
   left: 0;
   height: 100vh;
-  z-index: 1010;  /* lebih tinggi daripada header (1000) */
+  z-index: 1010;
   transform: translateX(-100%);
 }
 #wrapper.toggled #sidebar-wrapper {
   transform: translateX(0);
 }
-
 .sidebar-nav .nav-link {
   display: block;
   width: 100%;
@@ -252,5 +316,8 @@ const confirmLogout = () => {
 }
 .swal2-container.swal2-center.swal2-backdrop-show {
   z-index: 2000;
+}
+.badge {
+  font-size: 0.7em;
 }
 </style>

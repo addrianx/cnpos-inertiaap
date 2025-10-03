@@ -60,5 +60,11 @@ class User extends Authenticatable
     {
         return $this->roles()->where('name', $role)->exists();
     }
+
+    // ✅ TAMBAHKAN METHOD INI UNTUK MENDAPATKAN ROLE_ID
+    public function getRoleIdAttribute()
+    {
+        return $this->roles()->first()->id ?? null;
+    }
     
 }

@@ -1,26 +1,22 @@
 <template>
   <AppLayout>
     <div class="d-flex justify-content-between align-items-center mb-3">
-      <h2>Daftar Pinjam Stok</h2>
+      <h2 class="d-flex align-items-center gap-2">
+        Daftar Pinjam Stok
+        <button 
+          @click="showInfo" 
+          class="btn btn-sm btn-outline-info p-1 d-flex align-items-center justify-content-center"
+          style="width: 24px; height: 24px; border-radius: 50%;"
+          title="Klik untuk info"
+        >
+          <i class="fas fa-info" style="font-size: 12px;"></i>
+        </button>
+      </h2>
       <Link href="/stock-loan/create" class="btn btn-primary">+ Pinjam Stok</Link>
     </div>
 
     <!-- 🔍 Search & Per Page -->
     <div class="row mb-2 g-2">
-      <!-- Filter -->
-      <!-- <div class="col-12 col-md-auto">
-        <div class="d-flex align-items-center">
-          <label class="me-2">Tampilkan</label>
-          <select v-model.number="perPage" class="form-select w-auto">
-            <option :value="5">5</option>
-            <option :value="10">10</option>
-            <option :value="25">25</option>
-            <option :value="50">50</option>
-          </select>
-          <span class="ms-2">item per halaman</span>
-        </div>
-      </div> -->
-
       <!-- Search -->
       <div class="col-12 col-md">
         <input
@@ -34,68 +30,63 @@
 
     <div class="table-responsive">
       <table class="table table-bordered table-striped text-nowrap">
-      <thead class="table-dark">
-        <tr>
-          <th>#</th>
-          <th>Produk</th>
-          <th>Jumlah</th>
-          <th>Toko Peminjam</th>
-          <th>Toko Pemberi</th>
-          <th>Catatan</th>
-          <th>Status</th>
-          <th>Aksi</th> <!-- kolom aksi baru -->
-        </tr>
-      </thead>
-<tbody>
-  <tr v-if="paginatedLoans.length === 0">
-    <td colspan="8" class="text-center text-muted py-4">
-      Belum ada pinjaman stok.
-    </td>
-  </tr>
+        <thead class="table-dark">
+          <tr>
+            <th>#</th>
+            <th>Produk</th>
+            <th>Jumlah</th>
+            <th>Toko Peminjam</th>
+            <th>Toko Pemberi</th>
+            <th>Catatan</th>
+            <th>Status</th>
+            <th>Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-if="paginatedLoans.length === 0">
+            <td colspan="8" class="text-center text-muted py-4">
+              Belum ada pinjaman stok.
+            </td>
+          </tr>
 
-  <tr v-else v-for="(loan, i) in paginatedLoans" :key="loan.id">
-    <td>{{ (currentPage - 1) * perPage + i + 1 }}</td>
-    <td>
-      <ul class="mb-0 ps-3">
-        <li v-for="item in loan.items" :key="item.id">
-          {{ item.product.name }} ({{ item.quantity }})
-        </li>
-      </ul>
-    </td>
-    <td>{{ loan.items.reduce((sum, it) => sum + it.quantity, 0) }}</td>
-
-    <!-- ✅ perbaikan: tukar posisi -->
-    <td>{{ loan.to_store ? loan.to_store.name : '-' }}</td> <!-- Peminjam -->
-    <td>{{ loan.from_store ? loan.from_store.name : '-' }}</td> <!-- Penerima -->
-
-    <td>{{ loan.notes }}</td>
-    <td>
-      <span
-        class="badge"
-        :class="{
-          'bg-warning': loan.status === 'pending',
-          'bg-success': loan.status === 'approved',
-          'bg-dark': loan.status === 'returned',
-          'bg-danger': loan.status === 'rejected'
-        }"
-      >
-        {{ loan.status }}
-      </span>
-    </td>
-    <td>
-      <template v-if="loan.status === 'pending' && loan.from_store?.id === userStoreId">
-        <button class="btn btn-success btn-sm me-1" @click="approveLoan(loan.id)">Terima</button>
-        <button class="btn btn-danger btn-sm" @click="rejectLoan(loan.id)">Tolak</button>
-      </template>
-      <!-- Jika approved & user adalah toko peminjam (to_store) -->
-      <template v-else-if="loan.status === 'approved' && loan.to_store?.id === userStoreId">
-        <button class="btn btn-warning btn-sm" @click="returnLoan(loan.id)">Kembalikan</button>
-      </template>
-      <template v-else>-</template>
-    </td>
-  </tr>
-</tbody>
-
+          <tr v-else v-for="(loan, i) in paginatedLoans" :key="loan.id">
+            <td>{{ (currentPage - 1) * perPage + i + 1 }}</td>
+            <td>
+              <ul class="mb-0 ps-3">
+                <li v-for="item in loan.items" :key="item.id">
+                  {{ item.product.name }} ({{ item.quantity }})
+                </li>
+              </ul>
+            </td>
+            <td>{{ loan.items.reduce((sum, it) => sum + it.quantity, 0) }}</td>
+            <td>{{ loan.to_store ? loan.to_store.name : '-' }}</td>
+            <td>{{ loan.from_store ? loan.from_store.name : '-' }}</td>
+            <td>{{ loan.notes }}</td>
+            <td>
+              <span
+                class="badge"
+                :class="{
+                  'bg-warning': loan.status === 'pending',
+                  'bg-success': loan.status === 'approved',
+                  'bg-dark': loan.status === 'returned',
+                  'bg-danger': loan.status === 'rejected'
+                }"
+              >
+                {{ loan.status }}
+              </span>
+            </td>
+            <td>
+              <template v-if="loan.status === 'pending' && loan.from_store?.id === userStoreId">
+                <button class="btn btn-success btn-sm me-1" @click="approveLoan(loan.id)">Terima</button>
+                <button class="btn btn-danger btn-sm" @click="rejectLoan(loan.id)">Tolak</button>
+              </template>
+              <template v-else-if="loan.status === 'approved' && loan.to_store?.id === userStoreId">
+                <button class="btn btn-warning btn-sm" @click="returnLoan(loan.id)">Kembalikan</button>
+              </template>
+              <template v-else>-</template>
+            </td>
+          </tr>
+        </tbody>
       </table>
     </div>
 
@@ -141,15 +132,73 @@
 </template>
 
 <script setup>
-import { Link, router as Inertia } from '@inertiajs/vue3' // ✅ import router
+import { Link, router as Inertia } from '@inertiajs/vue3'
 import { ref, computed, watch } from 'vue'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import Swal from 'sweetalert2' // ✅ ini yang dibutuhkan
+import Swal from 'sweetalert2'
 
 const props = defineProps({
   loans: Array,
   userStoreId: Number
 })
+
+// Fungsi untuk menampilkan informasi pinjam stok
+const showInfo = () => {
+  Swal.fire({
+    title: '🔄 Tentang Pinjam Stok',
+    html: `
+      <div class="text-start">
+        <p><strong>Pinjam Stok</strong> adalah fitur untuk meminjam produk sementara antar toko dengan kewajiban pengembalian.</p>
+        
+        <div class="mt-3">
+          <h6>Perbedaan dengan Transfer Stok:</h6>
+          <table class="table table-sm table-bordered">
+            <thead>
+              <tr>
+                <th>Pinjam Stok</th>
+                <th>Transfer Stok</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>✅ Sementara (harus dikembalikan)</td>
+                <td>✅ Permanen (tidak dikembalikan)</td>
+              </tr>
+              <tr>
+                <td>✅ Butuh persetujuan toko pemberi</td>
+                <td>✅ Langsung diproses</td>
+              </tr>
+              <tr>
+                <td>✅ Status: Pending → Approved → Returned</td>
+                <td>✅ Status: Langsung selesai</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h6>Alur Pinjam Stok:</h6>
+          <ol>
+            <li><strong>Pengajuan:</strong> Toko peminjam mengajukan pinjaman</li>
+            <li><strong>Persetujuan:</strong> Toko pemberi menyetujui/menolak</li>
+            <li><strong>Pengambilan:</strong> Stok dipindahkan ke toko peminjam</li>
+            <li><strong>Pengembalian:</strong> Toko peminjam mengembalikan stok</li>
+          </ol>
+
+          <h6>Status:</h6>
+          <ul class="mb-0">
+            <li><span class="badge bg-warning">pending</span> - Menunggu persetujuan</li>
+            <li><span class="badge bg-success">approved</span> - Disetujui, stok dipinjamkan</li>
+            <li><span class="badge bg-dark">returned</span> - Stok sudah dikembalikan</li>
+            <li><span class="badge bg-danger">rejected</span> - Ditolak oleh toko pemberi</li>
+          </ul>
+        </div>
+      </div>
+    `,
+    icon: 'info',
+    confirmButtonText: 'Mengerti',
+    confirmButtonColor: '#3085d6',
+    width: '700px'
+  })
+}
 
 // state
 const currentPage = ref(1)
@@ -194,8 +243,8 @@ const visiblePages = computed(() => {
   return pages
 })
 
+const userStoreId = props.userStoreId
 
-const userStoreId = props.userStoreId // id toko user login
 const approveLoan = (loanId) => {
   Swal.fire({
     title: 'Konfirmasi Terima',

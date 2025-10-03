@@ -2,161 +2,262 @@
   <AppLayout>
     <div class="d-flex justify-content-between align-items-center mb-3">
       <h2>Daftar Penjualan</h2>
-      <Link href="/sales/create" class="btn btn-primary">+ Tambah Penjualan</Link>
+      <Link href="/sales/create" class="btn btn-primary">+ Transaksi Baru</Link>
     </div>
 
-    <!-- Filter & show per page -->
-    <div class="row mb-2 g-2">
-      <!-- Filter -->
-      <div class="col-12 col-md-auto">
-        <!-- <div class="d-flex align-items-center">
-          <label class="me-2">Tampilkan</label>
-          <select v-model.number="perPage" class="form-select w-auto">
-            <option :value="5">5</option>
-            <option :value="10">10</option>
-            <option :value="25">25</option>
-            <option :value="50">50</option>
-          </select>
-          <span class="ms-2">item per halaman</span>
-        </div> -->
-      </div>
-
-      <!-- Search -->
-      <div class="col-12 col-md">
-        <input
-          type="text"
-          v-model="search"
-          placeholder="Cari kode invoice, user..."
-          class="form-control w-100"
-        />
-      </div>
-    </div>
-
-    <!-- Jika kosong -->
-    <div v-if="filteredSales.length === 0" class="alert alert-info">
-      Belum ada penjualan.
-    </div>
-
-    <!-- Jika ada data -->
-    <div v-else class="table-responsive">
-      <table class="table table-bordered table-striped text-nowrap">
+    <div class="table-responsive">
+      <table class="table table-bordered table-striped table-nowrap">
         <thead class="table-dark">
           <tr>
-            <th>ID</th>
+            <th>#</th>
+            <th>Kode</th>
             <th>Tanggal</th>
-            <th>Kode Invoice</th>
-            <th>Kasir/User</th> <!-- ✅ TAMBAH KOLOM INI -->
-            <th>Items</th>
             <th>Total</th>
+            <th>Bayar</th>
+            <th>Kembali</th>
+            <th>Kasir</th>
+            <th>Status Retur</th>
+            <th>Aksi</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="sale in paginatedSales" :key="sale.id">
-            <td>{{ sale.id }}</td>
-            <td>{{ new Date(sale.created_at).toLocaleString() }}</td>
-            <td>{{ sale.sale_code }}</td>
-            <td>
-              <!-- ✅ TAMPILKAN USER -->
-              <div v-if="sale.user">
-                <strong>{{ sale.user.name }}</strong>
-                <br>
-                <small class="text-muted">{{ sale.user.email }}</small>
+          <tr v-if="sales.length === 0">
+            <td colspan="9" class="text-center text-muted py-4">
+              Belum ada penjualan.
+            </td>
+          </tr>
+
+          <tr v-else v-for="(sale, index) in sales" :key="sale.id">
+            <td class="text-nowrap">{{ index + 1 }}</td>
+            <td class="text-nowrap">
+              <strong>{{ sale.sale_code }}</strong>
+              <div v-if="sale.is_returned" class="badge bg-danger mt-1">DI RETUR</div>
+            </td>
+            <td class="text-nowrap">{{ formatDate(sale.created_at) }}</td>
+            <td class="text-nowrap">Rp {{ formatNumber(sale.total) }}</td>
+            <td class="text-nowrap">Rp {{ formatNumber(sale.paid) }}</td>
+            <td class="text-nowrap">Rp {{ formatNumber(sale.change) }}</td>
+            <td class="text-nowrap">{{ sale.user?.name }}</td>
+            <td class="text-nowrap">
+              <div v-if="sale.is_returned">
+                <span class="badge bg-danger">Sudah di-retur</span>
+                <small class="d-block text-muted">
+                  {{ formatDate(sale.returned_at) }}
+                </small>
               </div>
-              <div v-else class="text-muted">
-                <small>User tidak ditemukan</small>
+              <div v-else>
+                <span v-if="sale.can_return" class="badge bg-success">
+                  Bisa di-retur
+                </span>
+                <span v-else class="badge bg-secondary">
+                  Tidak bisa di-retur
+                </span>
+                <small class="d-block text-muted">
+                  {{ sale.remaining_return_time }}
+                </small>
               </div>
             </td>
-            <td>
-              <ul class="mb-0">
-                <li v-for="item in sale.items" :key="item.id">
-                  {{ item.product.name }} x {{ item.quantity }} =
-                  Rp {{ Number(item.subtotal).toLocaleString() }}
-                </li>
-              </ul>
+            <td class="text-nowrap">
+              <button 
+                v-if="!sale.is_returned && sale.can_return"
+                @click="confirmReturn(sale)"
+                class="btn btn-warning btn-sm"
+                title="Retur Penjualan"
+              >
+                <i class="fas fa-undo me-1"></i> Retur
+              </button>
+              <span v-else-if="sale.is_returned" class="text-muted">-</span>
+              <span v-else class="text-muted">-</span>
+              
+              <!-- Tombol detail -->
+              <button 
+                @click="showSaleDetail(sale)"
+                class="btn btn-info btn-sm ms-1"
+                title="Detail Penjualan"
+              >
+                <i class="fas fa-eye"></i>
+              </button>
             </td>
-            <td>Rp {{ Number(sale.total).toLocaleString() }}</td>
           </tr>
         </tbody>
       </table>
     </div>
 
-    <!-- Pagination -->
-    <nav v-if="totalPages > 1">
-      <ul class="pagination justify-content-center">
-        <li class="page-item" :class="{ disabled: currentPage === 1 }">
-          <button class="page-link" @click="prevPage">Sebelumnya</button>
-        </li>
-
-        <li
-          v-for="page in totalPages"
-          :key="page"
-          class="page-item"
-          :class="{ active: currentPage === page }"
-        >
-          <button class="page-link" @click="goToPage(page)">{{ page }}</button>
-        </li>
-
-        <li class="page-item" :class="{ disabled: currentPage === totalPages }">
-          <button class="page-link" @click="nextPage">Berikutnya</button>
-        </li>
-      </ul>
-    </nav>
+    <!-- Modal Detail Penjualan -->
+    <div v-if="showDetailModal" class="modal fade show d-block" tabindex="-1">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Detail Penjualan - {{ selectedSale?.sale_code }}</h5>
+            <button type="button" class="btn-close" @click="showDetailModal = false"></button>
+          </div>
+          <div class="modal-body">
+            <div v-if="selectedSale">
+              <div class="row mb-3">
+                <div class="col-md-6">
+                  <strong>Tanggal:</strong> {{ formatDate(selectedSale.created_at) }}<br>
+                  <strong>Kasir:</strong> {{ selectedSale.user?.name }}
+                </div>
+                <div class="col-md-6">
+                  <strong>Subtotal:</strong> Rp {{ formatNumber(selectedSale.subtotal) }}<br>
+                  <strong>Diskon:</strong> Rp {{ formatNumber(selectedSale.discount) }}<br>
+                  <strong>Total:</strong> Rp {{ formatNumber(selectedSale.total) }}
+                </div>
+              </div>
+              
+              <h6>Items:</h6>
+              <div class="table-responsive">
+                <table class="table table-sm table-bordered">
+                  <thead>
+                    <tr>
+                      <th class="text-nowrap">Produk</th>
+                      <th class="text-nowrap">Qty</th>
+                      <th class="text-nowrap">Harga</th>
+                      <th class="text-nowrap">Diskon</th>
+                      <th class="text-nowrap">Subtotal</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="item in selectedSale.items" :key="item.id">
+                      <td class="text-nowrap">{{ item.product?.name }}</td>
+                      <td class="text-nowrap">{{ item.quantity }}</td>
+                      <td class="text-nowrap">Rp {{ formatNumber(item.price) }}</td>
+                      <td class="text-nowrap">Rp {{ formatNumber(item.discount) }}</td>
+                      <td class="text-nowrap">Rp {{ formatNumber(item.subtotal) }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </AppLayout>
 </template>
 
 <script setup>
-import { Link } from '@inertiajs/vue3'
-import { ref, computed, watch } from 'vue'
+import { ref } from 'vue'
+import { Link, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import Swal from 'sweetalert2'
+import axios from 'axios'
 
-const props = defineProps({ sales: Array })
+const props = defineProps({
+  sales: Array
+})
 
-// state
-const currentPage = ref(1)
-const perPage = ref(10)
-const search = ref('')
+const showDetailModal = ref(false)
+const selectedSale = ref(null)
 
-// filter dengan search yang lebih luas (termasuk user)
-const filteredSales = computed(() => {
-  if (!search.value) return props.sales
-  
-  const searchLower = search.value.toLowerCase()
-  return props.sales.filter(sale => {
-    // Cari di kode sale
-    const saleCodeMatch = sale.sale_code?.toLowerCase().includes(searchLower) || false
-    
-    // Cari di nama user
-    const userNameMatch = sale.user?.name?.toLowerCase().includes(searchLower) || false
-    const userEmailMatch = sale.user?.email?.toLowerCase().includes(searchLower) || false
-    
-    // Cari di nama produk
-    const productMatch = sale.items?.some(item => 
-      item.product?.name?.toLowerCase().includes(searchLower)
-    ) || false
-
-    return saleCodeMatch || userNameMatch || userEmailMatch || productMatch
+const formatDate = (dateString) => {
+  if (!dateString) return '-'
+  return new Date(dateString).toLocaleDateString('id-ID', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
   })
-})
-
-// total halaman
-const totalPages = computed(() =>
-  Math.ceil(filteredSales.value.length / perPage.value) || 1
-)
-
-// data halaman aktif
-const paginatedSales = computed(() => {
-  const start = (currentPage.value - 1) * perPage.value
-  const end = start + perPage.value
-  return filteredSales.value.slice(start, end)
-})
-
-// navigasi
-const goToPage = (page) => { 
-  if (page >= 1 && page <= totalPages.value) currentPage.value = page 
 }
-const nextPage = () => goToPage(currentPage.value + 1)
-const prevPage = () => goToPage(currentPage.value - 1)
 
-// reset ke page 1 jika search / perPage berubah
-watch([search, perPage], () => { currentPage.value = 1 })
+const formatNumber = (num) => {
+  return new Intl.NumberFormat('id-ID').format(num || 0)
+}
+
+const showSaleDetail = (sale) => {
+  selectedSale.value = sale
+  showDetailModal.value = true
+}
+
+const confirmReturn = (sale) => {
+  Swal.fire({
+    title: 'Konfirmasi Retur',
+    html: `
+      <p>Anda akan melakukan retur untuk penjualan: <strong>${sale.sale_code}</strong></p>
+      <p>Total: <strong>Rp ${formatNumber(sale.total)}</strong></p>
+      <p>Stok akan dikembalikan ke sistem.</p>
+      <textarea 
+        id="return-reason" 
+        class="form-control mt-3" 
+        placeholder="Alasan retur (opsional)"
+        rows="3"
+      ></textarea>
+    `,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#d33',
+    cancelButtonColor: '#6c757d',
+    confirmButtonText: 'Ya, Retur!',
+    cancelButtonText: 'Batal',
+    preConfirm: () => {
+      const reason = document.getElementById('return-reason').value
+      return { reason }
+    }
+  }).then(async (result) => {
+    if (result.isConfirmed) {
+      try {
+        const response = await axios.post(`/sales/${sale.id}/return`, {
+          reason: result.value.reason
+        })
+
+        if (response.data.success) {
+          Swal.fire('Berhasil!', response.data.message, 'success')
+          router.reload()
+        } else {
+          Swal.fire('Gagal!', response.data.message, 'error')
+        }
+      } catch (error) {
+        Swal.fire('Error!', error.response?.data?.message || 'Terjadi kesalahan', 'error')
+      }
+    }
+  })
+}
 </script>
+
+<style scoped>
+.modal {
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+/* ✅ Tambahan CSS untuk table no-wrap */
+.table-nowrap {
+  white-space: nowrap;
+  min-width: 800px; /* Minimum width untuk table */
+}
+
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Optimasi untuk mobile */
+@media (max-width: 768px) {
+  .table-nowrap {
+    min-width: 1000px; /* Lebih lebar untuk mobile */
+    font-size: 0.875rem;
+  }
+  
+  .btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.775rem;
+  }
+  
+  .badge {
+    font-size: 0.7rem;
+  }
+}
+
+/* Pastikan semua cell tidak wrap */
+.text-nowrap {
+  white-space: nowrap;
+}
+
+/* Header table tetap */
+.table-dark th {
+  position: sticky;
+  top: 0;
+  background: #343a40;
+  z-index: 10;
+}
+</style>
