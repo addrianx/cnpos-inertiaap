@@ -17,6 +17,7 @@ class Product extends Model
         'discount',
         'store_id',
         'category_id',
+        'created_by',
     ];
 
     protected $appends = ['stock'];
@@ -48,5 +49,11 @@ class Product extends Model
     public function category()
     {
         return $this->belongsTo(Category::class);
+    }
+    
+    // ✅ TAMBAH: Relasi ke user yang membuat produk
+    public function createdBy()
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 }

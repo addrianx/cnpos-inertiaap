@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Store;
 use App\Models\User;
-use App\Models\Role;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -26,11 +25,11 @@ class StoreController extends Controller
      */
     public function create()
     {
-        $users = User::all();  // untuk pilih manager toko
-        $roles = Role::all();  // untuk dropdown role saat tambah user baru
+        // Hanya ambil user yang belum memiliki toko
+        $users = User::whereDoesntHave('stores')->get();
+        
         return Inertia::render('Store/Create', [
             'users' => $users,
-            'roles' => $roles,
         ]);
     }
 
@@ -67,17 +66,21 @@ class StoreController extends Controller
      */
     public function edit(Store $store)
     {
-        $store->load('users'); // ambil user manager yang sudah tersimpan
-        $users = User::all();
-        $roles = Role::all();
+        $store->load('users');
+        
+        // Ambil user yang belum memiliki toko ATAU sudah menjadi bagian dari toko ini
+        $users = User::where(function($query) use ($store) {
+            $query->whereDoesntHave('stores')
+                  ->orWhereHas('stores', function($q) use ($store) {
+                      $q->where('stores.id', $store->id);
+                  });
+        })->get();
 
         return Inertia::render('Store/Edit', [
             'store' => $store,
             'users' => $users,
-            'roles' => $roles,
         ]);
     }
-
 
     /**
      * Update toko

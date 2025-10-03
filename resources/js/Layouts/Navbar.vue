@@ -72,6 +72,15 @@
             Toko
           </Link>
         </li>
+        <li v-if="$page.props.auth.user.roles.some(role => role.name === 'admin')">
+          <Link
+            class="nav-link text-white"
+            href="/users"
+            :class="{ active: $page.url.startsWith('/users') }"
+          >
+            👥 Users
+          </Link>
+        </li>
         <li>
           <Link
             class="nav-link text-white"

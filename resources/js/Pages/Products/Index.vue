@@ -49,13 +49,14 @@
                         <th>Harga Jual</th>
                         <th>Diskon</th>
                         <th>Stok</th>
+                        <th>Ditambahkan</th> <!-- ✅ KOLOM BARU -->
                         <th>Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
                     <!-- Loader khusus di tabel -->
-                    <tr v-if="tableLoading">
-                        <td colspan="7" class="text-center py-4">
+                   <tr v-if="tableLoading">
+                        <td colspan="9" class="text-center py-4"> <!-- ✅ Update colspan -->
                             <div class="spinner-border text-primary" role="status">
                                 <span class="visually-hidden">Loading...</span>
                             </div>
@@ -65,7 +66,7 @@
 
                     <!-- Data produk -->
                     <tr v-else-if="paginatedProducts.length === 0">
-                        <td colspan="7" class="text-center text-muted py-4">
+                        <td colspan="9" class="text-center text-muted py-4"> <!-- ✅ Update colspan -->
                             Tidak ada produk.
                         </td>
                     </tr>
@@ -104,6 +105,17 @@
                             }, 0)
                             : 0
                         }}
+                    </td>
+                    <td>
+                        <div v-if="product.created_by">
+                            <div class="fw-semibold">{{ product.created_by.name }}</div>
+                            <small class="text-muted">
+                                {{ formatDate(product.created_at) }}
+                            </small>
+                        </div>
+                        <div v-else class="text-muted">
+                            <small>-</small>
+                        </div>
                     </td>
                     <td>
                         <Link :href="`/products/${product.id}/edit`" class="btn btn-sm btn-warning me-2">
@@ -221,6 +233,17 @@
         }
     })
 
+    // ✅ TAMBAH: Fungsi format tanggal
+    const formatDate = (dateString) => {
+        if (!dateString) return '-'
+        const date = new Date(dateString)
+        return date.toLocaleDateString('id-ID', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        })
+    }
+
     // Reactive state
     const perPage = ref(20)
     const currentPage = ref(1)
@@ -242,11 +265,12 @@
         list = list.filter(p => {
         const category = categories.value.find(c => c.id === p.category_id)
         const categoryName = category ? category.name.toLowerCase() : ''
-        return (
-            p.name.toLowerCase().includes(query) ||
-            p.sku.toLowerCase().includes(query) ||
-            categoryName.includes(query)
-        )
+                return (
+                    p.name.toLowerCase().includes(query) ||
+                    p.sku.toLowerCase().includes(query) ||
+                    categoryName.includes(query) ||
+                    createdByName.includes(query) // ✅ Bisa search by nama pembuat
+                )
         })
     }
 

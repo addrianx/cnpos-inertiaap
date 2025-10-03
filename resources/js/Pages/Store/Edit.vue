@@ -36,17 +36,23 @@
           <!-- Pilih User Manager -->
           <div class="mb-3">
             <label class="form-label">User Manager</label>
-            <div v-for="user in users" :key="user.id" class="form-check">
-              <input
-                type="checkbox"
-                class="form-check-input"
-                :id="'user-' + user.id"
-                :value="user.id"
-                v-model="formStore.user_ids"
-              />
-              <label class="form-check-label" :for="'user-' + user.id">
-                {{ user.name }} ({{ user.email }})
-              </label>
+            <div v-if="users.length > 0">
+              <div v-for="user in users" :key="user.id" class="form-check">
+                <input
+                  type="checkbox"
+                  class="form-check-input"
+                  :id="'user-' + user.id"
+                  :value="user.id"
+                  v-model="formStore.user_ids"
+                />
+                <label class="form-check-label" :for="'user-' + user.id">
+                  {{ user.name }} ({{ user.email }})
+                  <span v-if="isCurrentStoreUser(user.id)" class="badge bg-info ms-1">Manager Toko Ini</span>
+                </label>
+              </div>
+            </div>
+            <div v-else class="alert alert-warning">
+              Tidak ada user yang tersedia. Semua user sudah menjadi manager toko lain.
             </div>
           </div>
 
@@ -62,7 +68,7 @@
 import { Link, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Swal from 'sweetalert2'
-import { reactive } from 'vue'
+import { reactive, computed } from 'vue'
 
 const props = defineProps({
   store: Object, // data toko yang akan diedit
@@ -75,6 +81,11 @@ const formStore = reactive({
   user_ids: props.store.users?.map(u => u.id) || [],
 })
 
+// Fungsi untuk mengecek apakah user adalah bagian dari toko ini
+const isCurrentStoreUser = (userId) => {
+  return props.store.users?.some(user => user.id === userId) || false
+}
+
 const updateStore = () => {
   router.put(`/stores/${props.store.id}`, formStore, {
     onSuccess: () => {
@@ -86,4 +97,3 @@ const updateStore = () => {
   })
 }
 </script>
-

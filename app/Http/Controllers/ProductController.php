@@ -22,7 +22,8 @@ class ProductController extends Controller
 
         $storeId = $store->id;
 
-        $products = Product::with(['stocks', 'category'])
+        // ✅ UPDATE: Eager load user yang membuat produk
+        $products = Product::with(['stocks', 'category', 'createdBy'])
             ->where('store_id', $storeId)
             ->get();
 
@@ -33,7 +34,6 @@ class ProductController extends Controller
             'categories' => $categories,
         ]);
     }
-
 
 
     // 📌 Form tambah produk
@@ -66,7 +66,7 @@ class ProductController extends Controller
             'cost'        => 'required|numeric',
             'price'       => 'required|numeric',
             'discount'    => 'nullable|numeric|min:0|max:100',
-            'category_id' => 'required|exists:categories,id', // tambahkan validasi kategori
+            'category_id' => 'required|exists:categories,id',
         ]);
 
         $store = auth()->user()->stores()->with(['users.roles'])->first();
@@ -76,6 +76,7 @@ class ProductController extends Controller
                 ->with('error', 'Anda belum memiliki toko, buat toko terlebih dahulu sebelum menambahkan produk.');
         }
 
+        // ✅ UPDATE: Tambahkan created_by field
         Product::create([
             'sku'         => $request->sku,
             'name'        => $request->name,
@@ -83,7 +84,8 @@ class ProductController extends Controller
             'price'       => $request->price,
             'discount'    => $request->discount ?? 0,
             'store_id'    => $store->id,
-            'category_id' => $request->category_id, // simpan kategori
+            'category_id' => $request->category_id,
+            'created_by'  => auth()->id(), // ✅ Tambahkan ini
         ]);
 
         return redirect()->route('products.index')->with('success', 'Produk berhasil ditambahkan');
@@ -129,6 +131,7 @@ class ProductController extends Controller
             'discount'    => $request->discount ?? 0,
             'store_id'    => $store->id,
             'category_id' => $request->category_id, // update kategori
+            'updated_by'  => auth()->id(),
         ]);
 
         return redirect()->route('products.index')->with('success', 'Produk berhasil diperbarui');

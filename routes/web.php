@@ -47,9 +47,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/sales', [SaleController::class, 'index'])->name('sales.index');
     Route::get('/sales/create', [SaleController::class, 'create'])->name('sales.create');
     Route::post('/sales', [SaleController::class, 'store'])->name('sales.store');
-    // STORE ROUTE
+    // STORE ROUTE & USER KHUSUS ADMIN
     Route::middleware(['role:admin'])->group(function () {
         Route::resource('/stores', StoreController::class);
+
+        Route::resource('users', UserController::class);
+        Route::post('/users/{user}/suspend', [UserController::class, 'suspend'])->name('users.suspend');
+        Route::post('/users/{user}/activate', [UserController::class, 'activate'])->name('users.activate');
     });
     // ➕ STOCK LOAN ROUTE
     Route::get('/stock-loan', [StockLoanController::class, 'index'])->name('stockloan.index');

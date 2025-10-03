@@ -6,7 +6,7 @@
     </div>
 
     <!-- Form Tambah Toko -->
-    <div class="card mb-4">
+    <div class="card">
       <div class="card-header bg-dark text-white">Form Tambah Toko</div>
       <div class="card-body">
         <form @submit.prevent="submitStore">
@@ -37,17 +37,22 @@
           <!-- Pilih User Manager -->
           <div class="mb-3">
             <label class="form-label">User Manager</label>
-            <div v-for="user in users" :key="user.id" class="form-check">
-              <input
-                type="checkbox"
-                class="form-check-input"
-                :id="'user-' + user.id"
-                :value="user.id"
-                v-model="formStore.user_ids"
-              />
-              <label class="form-check-label" :for="'user-' + user.id">
-                {{ user.name }} ({{ user.email }})
-              </label>
+            <div v-if="users.length > 0">
+              <div v-for="user in users" :key="user.id" class="form-check">
+                <input
+                  type="checkbox"
+                  class="form-check-input"
+                  :id="'user-' + user.id"
+                  :value="user.id"
+                  v-model="formStore.user_ids"
+                />
+                <label class="form-check-label" :for="'user-' + user.id">
+                  {{ user.name }} ({{ user.email }})
+                </label>
+              </div>
+            </div>
+            <div v-else class="alert alert-warning">
+              Tidak ada user yang tersedia. Silakan buat user terlebih dahulu.
             </div>
           </div>
 
@@ -56,56 +61,6 @@
         </form>
       </div>
     </div>
-
-  <!-- Form Tambah User Baru -->
-  <div class="card">
-    <div class="card-header bg-secondary text-white">
-      Tambah User Baru (Manager Toko)
-    </div>
-    <div class="card-body">
-      <form @submit.prevent="submitUser">
-        <!-- Nama -->
-        <div class="mb-3">
-          <label class="form-label">Nama</label>
-          <input
-            v-model="formUser.name"
-            type="text"
-            class="form-control"
-            placeholder="Nama lengkap"
-            required
-          />
-        </div>
-
-        <!-- Email -->
-        <div class="mb-3">
-          <label class="form-label">Email</label>
-          <input
-            v-model="formUser.email"
-            type="email"
-            class="form-control"
-            placeholder="Email aktif"
-            required
-          />
-        </div>
-
-        <!-- Pilih Role -->
-        <div class="mb-3">
-          <label class="form-label">Role</label>
-          <select v-model="formUser.role_id" class="form-select" required>
-            <option value="" disabled>Pilih role untuk user ini</option>
-            <option v-for="role in roles" :key="role.id" :value="role.id">
-              {{ role.label }}
-            </option>
-          </select>
-          <small class="text-muted">Role menentukan hak akses user di sistem</small>
-        </div>
-
-        <!-- Tombol Simpan User -->
-        <button type="submit" class="btn btn-primary">Simpan User</button>
-      </form>
-    </div>
-  </div>
-
   </AppLayout>
 </template>
 
@@ -117,22 +72,13 @@ import { reactive } from 'vue'
 
 defineProps({
   users: Array, // untuk dropdown User Manager
-  roles: Array, // daftar roles dari controller
 })
 
 // Form Toko
 const formStore = reactive({
   name: '',
   address: '',
-  user_ids: [], // ubah dari user_id: '' menjadi array kosong
-})
-
-// Form User Baru
-const formUser = reactive({
-  name: '',
-  email: '',
-  password: '',
-  role_id: '', // tambahan role
+  user_ids: [],
 })
 
 // Submit Toko
@@ -142,36 +88,11 @@ const submitStore = () => {
       Swal.fire('Berhasil!', 'Toko berhasil ditambahkan.', 'success')
       formStore.name = ''
       formStore.address = ''
-      formStore.user_id = ''
+      formStore.user_ids = []
     },
     onError: () => {
       Swal.fire('Gagal!', 'Terjadi kesalahan saat menambahkan toko.', 'error')
     },
   })
 }
-
-// Submit User
-const submitUser = () => {
-  const payload = {
-    name: formUser.name,
-    email: formUser.email,
-    role_id: formUser.role_id,
-  }
-
-  router.post('/users', payload, {
-    onSuccess: () => {
-      Swal.fire('Berhasil!', 'User baru berhasil ditambahkan.', 'success')
-      formUser.name = ''
-      formUser.email = ''
-      formUser.role_id = ''
-    },
-    onError: (errors) => {
-      Swal.fire('Gagal!', 'Terjadi kesalahan saat menambahkan user.', 'error')
-      console.log(errors)
-    },
-  })
-}
-
-
-
 </script>

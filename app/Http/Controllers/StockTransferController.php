@@ -8,6 +8,7 @@ use App\Models\Store;
 use App\Models\StockTransfer;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\DB;
 
 class StockTransferController extends Controller
 {
@@ -16,7 +17,10 @@ class StockTransferController extends Controller
      */
     public function index()
     {
-        $store = auth()->user()->store;
+        // ✅ FIX: Gunakan many-to-many
+        $store = Store::whereHas('users', function($q) {
+            $q->where('users.id', auth()->id());
+        })->first();
 
         if (!$store) {
             return redirect()->route('stores.create')
@@ -37,27 +41,35 @@ class StockTransferController extends Controller
     }
 
     /**
-     * 📌 Form transfer stok (opsional jika pakai inertia/vue form)
+     * 📌 Form transfer stok
      */
     public function create()
     {
-        $store = auth()->user()->store;
+        // ✅ FIX: Gunakan many-to-many
+        $store = Store::whereHas('users', function($q) {
+            $q->where('users.id', auth()->id());
+        })->first();
 
         if (!$store) {
             return redirect()->route('stores.create')
                 ->with('error', 'Anda belum memiliki toko, buat toko terlebih dahulu.');
         }
 
-    $products = Product::where('store_id', $store->id)
-        ->get()
-        ->map(function ($p) {
-            return [
-                'id'    => $p->id,
-                'name'  => $p->name,
-                'stock' => $p->current_stock,
-            ];
-        });
-        $stores   = Store::where('id', '!=', $store->id)->get();
+        // ✅ FIX: Ambil produk dari toko user (many-to-many compatible)
+        $products = Product::where('store_id', $store->id)
+            ->get()
+            ->map(function ($p) {
+                return [
+                    'id'    => $p->id,
+                    'name'  => $p->name,
+                    'stock' => $p->stock, // Gunakan accessor stock, bukan current_stock
+                ];
+            });
+
+        // ✅ FIX: Ambil toko lain yang bisa di-transfer
+        $stores = Store::where('id', '!=', $store->id)
+            ->whereHas('users') // Hanya toko yang punya user (aktif)
+            ->get();
 
         return Inertia::render('StockTransfers/Create', [
             'products' => $products,
@@ -78,52 +90,53 @@ class StockTransferController extends Controller
             'note'        => 'nullable|string',
         ]);
 
-        $fromStore = auth()->user()->store; // toko pengirim
-        $toStore   = Store::findOrFail($request->to_store_id);
+        // ✅ FIX: Gunakan many-to-many untuk authorization
+        $fromStore = Store::whereHas('users', function($q) {
+            $q->where('users.id', auth()->id());
+        })->firstOrFail();
 
-        // pastikan produk milik toko pengirim
+        $toStore = Store::findOrFail($request->to_store_id);
+
+        // ✅ Pastikan produk milik toko pengirim & user punya akses
         $product = Product::where('id', $request->product_id)
             ->where('store_id', $fromStore->id)
             ->firstOrFail();
 
-        // hitung stok
-        $totalStock = $product->stocks->reduce(function ($total, $s) {
-            if ($s->type === 'in' || $s->type === 'adjustment') return $total + $s->quantity;
-            if ($s->type === 'out') return $total - $s->quantity;
-            return $total;
-        }, 0);
-
-        if ($request->quantity > $totalStock) {
-            return back()->with('error', 'Stok tidak cukup untuk dikirim.');
+        // ✅ Gunakan accessor stock dari model Product
+        if ($request->quantity > $product->stock) {
+            return back()->with('error', 'Stok tidak cukup untuk dikirim. Stok tersedia: ' . $product->stock);
         }
 
-        \DB::transaction(function () use ($product, $fromStore, $toStore, $request) {
+        DB::transaction(function () use ($product, $fromStore, $toStore, $request) {
             // 1️⃣ Kurangi stok di toko pengirim
             Stock::create([
                 'product_id' => $product->id,
+                'user_id'    => auth()->id(), // ✅ Jangan lupa user_id
                 'type'       => 'out',
                 'quantity'   => $request->quantity,
                 'reference'  => $request->reference,
-                'note'       => 'Transfer ke ' . $toStore->name . ' - ' . $request->note,
+                'note'       => 'Transfer ke ' . $toStore->name . ' - ' . ($request->note ?? ''),
             ]);
 
             // 2️⃣ Tambah stok di toko penerima
             $toProduct = Product::firstOrCreate(
                 ['sku' => $product->sku, 'store_id' => $toStore->id],
                 [
-                    'name'     => $product->name,
-                    'cost'     => $product->cost,
-                    'price'    => $product->price,
-                    'discount' => $product->discount,
+                    'name'        => $product->name,
+                    'cost'        => $product->cost,
+                    'price'       => $product->price,
+                    'discount'    => $product->discount,
+                    'category_id' => $product->category_id,
                 ]
             );
 
             Stock::create([
                 'product_id' => $toProduct->id,
+                'user_id'    => auth()->id(), // ✅ Jangan lupa user_id
                 'type'       => 'in',
                 'quantity'   => $request->quantity,
                 'reference'  => $request->reference,
-                'note'       => 'Transfer dari ' . $fromStore->name . ' - ' . $request->note,
+                'note'       => 'Transfer dari ' . $fromStore->name . ' - ' . ($request->note ?? ''),
             ]);
 
             // 3️⃣ Catat ke tabel stock_transfers
@@ -141,7 +154,4 @@ class StockTransferController extends Controller
         return redirect()->route('stock-transfers.index')
             ->with('success', 'Transfer stok berhasil.');
     }
-
-
-
 }

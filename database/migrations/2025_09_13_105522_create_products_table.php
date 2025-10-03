@@ -20,6 +20,7 @@ return new class extends Migration
             $table->decimal('discount', 5, 2)->default(0); // diskon default (%)
             $table->foreignId('store_id')->constrained()->onDelete('cascade');
             $table->foreignId('category_id')->nullable()->constrained()->onDelete('set null');
+            $table->foreignId('created_by')->nullable()->constrained('users')->onDelete('set null');
             $table->timestamps();
 
             // unique kombinasi per toko
