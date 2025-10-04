@@ -93,6 +93,65 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // User management khusus admin
         Route::post('/users/{user}/suspend', [UserController::class, 'suspend'])->name('users.suspend');
         Route::post('/users/{user}/activate', [UserController::class, 'activate'])->name('users.activate');
+
+        Route::get('/debug-pc-data', function() {
+            $categoryMapping = [
+                'Processor' => 'processors',
+                'Motherboard' => 'motherboards', 
+                'RAM' => 'memories',
+                'VGA Card' => 'graphics_cards',
+                'SSD' => 'storages',
+                'Hard Disk' => 'storages',
+                'Power Supply' => 'power_supplies',
+                'Casing' => 'cases',
+                'CPU Fan' => 'cpu_coolers'
+            ];
+
+            // Get products with categories
+            $products = \App\Models\Product::with(['category', 'stocks'])
+                ->whereHas('category', function($query) use ($categoryMapping) {
+                    $query->whereIn('name', array_keys($categoryMapping));
+                })
+                ->whereHas('stocks', function($query) {
+                    $query->where('quantity', '>', 0);
+                })
+                ->get();
+
+            // Original grouping by category name
+            $originalComponents = $products->groupBy('category.name');
+            
+            // Mapped grouping for AI
+            $mappedComponents = [];
+            foreach ($products as $product) {
+                $originalCategory = $product->category->name;
+                $mappedCategory = $categoryMapping[$originalCategory] ?? null;
+                
+                if ($mappedCategory) {
+                    if (!isset($mappedComponents[$mappedCategory])) {
+                        $mappedComponents[$mappedCategory] = [];
+                    }
+                    $mappedComponents[$mappedCategory][] = [
+                        'id' => $product->id,
+                        'name' => $product->name,
+                        'price' => $product->price,
+                        'discount' => $product->discount,
+                        'original_category' => $originalCategory,
+                        'mapped_category' => $mappedCategory
+                    ];
+                }
+            }
+
+            return response()->json([
+                'category_mapping_used' => $categoryMapping,
+                'original_categories_found' => $originalComponents->keys()->toArray(),
+                'mapped_categories_result' => array_keys($mappedComponents),
+                'products_per_original_category' => $originalComponents->map(function($products) {
+                    return $products->count();
+                })->toArray(),
+                'products_per_mapped_category' => array_map('count', $mappedComponents),
+                'sample_products' => $mappedComponents
+            ]);
+        });
     });
 });
 
@@ -103,3 +162,6 @@ Route::middleware('auth')->group(function () {
 });
 
 require __DIR__.'/auth.php';
+
+
+// routes/web.php

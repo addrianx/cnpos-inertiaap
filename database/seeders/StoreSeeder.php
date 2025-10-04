@@ -17,9 +17,9 @@ class StoreSeeder extends Seeder
 
         if (!$userId) {
             $userId = DB::table('users')->insertGetId([
-                'name' => 'Default Owner',
-                'email' => 'owner@example.com',
-                'password' => bcrypt('password'),
+                'name' => 'Admin',
+                'email' => 'admin@example.com',
+                'password' => bcrypt('admin123'),
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);

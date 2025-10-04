@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class PCAssembly extends Model
 {
+    protected $table = 'pc_assemblies';
     use HasFactory;
 
     protected $fillable = [
@@ -27,7 +28,7 @@ class PCAssembly extends Model
     // Relationships
     public function user()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class)->select(['id', 'name', 'email']);
     }
 
     public function store()

@@ -11,7 +11,7 @@ class CategorySeeder extends Seeder
     {
         $categories = [
             'Laptop',
-            'Desktop PC',
+            'Desktop PC', 
             'Monitor',
             'Keyboard',
             'Mouse',
@@ -28,7 +28,7 @@ class CategorySeeder extends Seeder
             'Power Supply',
             'VGA Card',
             'Casing',
-            'Cooling Fan',
+            'CPU Fan',
             'Flashdisk',
         ];
 
