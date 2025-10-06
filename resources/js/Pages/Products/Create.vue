@@ -119,7 +119,7 @@
         <label class="form-label">Kategori</label>
         <select v-model="form.category_id" class="form-select">
           <option value="" disabled>Pilih kategori</option>
-          <option v-for="cat in categories" :key="cat.id" :value="cat.id">
+          <option v-for="cat in sortedCategories" :key="cat.id" :value="cat.id">
             {{ cat.name }}
           </option>
         </select>
@@ -171,6 +171,19 @@ const form = useForm({
   price: '',
   discount: 0,
   category_id: '',
+})
+
+// Computed untuk mengurutkan kategori berdasarkan abjad
+const sortedCategories = computed(() => {
+  return [...categories].sort((a, b) => {
+    // Handle null atau undefined names
+    const nameA = (a.name || '').toLowerCase()
+    const nameB = (b.name || '').toLowerCase()
+    
+    if (nameA < nameB) return -1
+    if (nameA > nameB) return 1
+    return 0
+  })
 })
 
 // Computed untuk validasi SKU
@@ -234,14 +247,6 @@ const checkSimilarProducts = async () => {
     })
     
     similarProducts.value = response.data.similar_products || []
-    
-    // DEBUG: Tampilkan info lengkap di console
-    console.log('=== PRODUCT SIMILARITY CHECK ===')
-    console.log('Search term:', response.data.search_term)
-    console.log('Search words:', response.data.search_words)
-    console.log('Found products:', response.data.similar_products)
-    console.log('Debug info:', response.data.debug)
-    console.log('=== END CHECK ===')
     
   } catch (error) {
     console.error('Error checking similar products:', error)
@@ -414,5 +419,17 @@ onUnmounted(() => {
 .alert-danger {
   font-size: 0.875rem;
   padding: 0.75rem;
+}
+
+.btn-warning {
+  background-color: #ffc107;
+  border-color: #ffc107;
+  color: #212529;
+}
+
+.btn-warning:hover {
+  background-color: #e0a800;
+  border-color: #d39e00;
+  color: #212529;
 }
 </style>

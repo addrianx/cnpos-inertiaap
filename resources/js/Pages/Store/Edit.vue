@@ -16,9 +16,13 @@
               v-model="form.name"
               type="text"
               class="form-control"
+              @blur="formatStoreName"
               placeholder="Masukkan nama toko"
               required
             />
+            <div class="form-text text-muted">
+              Nama toko akan otomatis dikapitalisasi
+            </div>
           </div>
 
           <!-- Alamat -->
@@ -28,9 +32,13 @@
               v-model="form.address"
               class="form-control"
               rows="3"
+              @blur="formatAddress"
               placeholder="Alamat lengkap toko"
               required
             ></textarea>
+            <div class="form-text text-muted">
+              Alamat akan otomatis dikapitalisasi
+            </div>
           </div>
 
           <!-- Pilih User -->
@@ -97,6 +105,45 @@ const form = ref({
   user_ids: props.store.users?.map(u => u.id) || [],
 })
 
+// Function untuk format nama toko dengan capitalize
+const formatStoreName = () => {
+  if (form.value.name && form.value.name.trim()) {
+    form.value.name = form.value.name
+      .toLowerCase()
+      .split(' ')
+      .map(word => {
+        if (word.trim() === '') return ''
+        return word.charAt(0).toUpperCase() + word.slice(1)
+      })
+      .join(' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+  }
+}
+
+// Function untuk format alamat dengan capitalize
+const formatAddress = () => {
+  if (form.value.address && form.value.address.trim()) {
+    // Capitalize setiap kalimat dalam alamat
+    form.value.address = form.value.address
+      .toLowerCase()
+      .split('. ')
+      .map(sentence => {
+        if (sentence.trim() === '') return ''
+        return sentence.charAt(0).toUpperCase() + sentence.slice(1)
+      })
+      .join('. ')
+      .split(', ')
+      .map(part => {
+        if (part.trim() === '') return ''
+        return part.charAt(0).toUpperCase() + part.slice(1)
+      })
+      .join(', ')
+      .replace(/\s+/g, ' ')
+      .trim()
+  }
+}
+
 // ✅ PERBAIKAN: Ambil role_id dari relationship
 const getUserRoleId = (user) => {
   return user.roles?.[0]?.id || null
@@ -126,6 +173,10 @@ const isCurrentStoreUser = (userId) => {
 
 // ✅ PERBAIKAN: Gunakan axios.post dengan _method seperti form produk yang berhasil
 const submit = async () => {
+  // Format nama dan alamat sebelum submit
+  formatStoreName()
+  formatAddress()
+  
   loading.value = true
   try {
     const payload = {
@@ -169,3 +220,51 @@ onMounted(() => {
   }
 })
 </script>
+
+<style scoped>
+.card {
+  border: 1px solid #dee2e6;
+  border-radius: 0.375rem;
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.card-header {
+  border-bottom: 1px solid #dee2e6;
+  font-weight: 600;
+}
+
+.form-control:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25);
+}
+
+.form-check-input:checked {
+  background-color: #198754;
+  border-color: #198754;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.spinner-border-sm {
+  width: 1rem;
+  height: 1rem;
+}
+
+.form-text {
+  font-size: 0.875rem;
+  color: #6c757d;
+}
+
+.alert-warning {
+  background-color: #fff3cd;
+  border-color: #ffecb5;
+  color: #664d03;
+}
+
+.badge {
+  font-size: 0.75rem;
+}
+</style>

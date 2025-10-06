@@ -29,16 +29,6 @@
           <i class="bi bi-download me-2"></i> Install Aplikasi
         </button>
       </div>
-
-      <!-- Debug Info (Hanya di Development) -->
-      <div v-if="isDevelopment" class="alert alert-info mt-3">
-        <h6>🔧 PWA Debug Info:</h6>
-        <p><strong>Install Button:</strong> {{ showInstall ? 'SHOWING' : 'HIDDEN' }}</p>
-        <p><strong>Service Worker:</strong> {{ swStatus }}</p>
-        <p><strong>Manifest:</strong> {{ manifestStatus }}</p>
-        <p><strong>HTTPS:</strong> {{ isHTTPS ? 'YES' : 'NO' }}</p>
-        <p><strong>Can Show:</strong> {{ canShowInstallBtn() ? 'YES' : 'NO' }}</p>
-      </div>
     </div>
   </div>
 </template>
@@ -52,8 +42,6 @@ import Swal from 'sweetalert2'
 
 const page = usePage()
 const showInstall = ref(false)
-const swStatus = ref('Checking...')
-const manifestStatus = ref('Checking...')
 let deferredPrompt
 
 const HIDE_DAYS = 3
@@ -67,16 +55,6 @@ const fullTitle = computed(() => {
 })
 
 const appName = computed(() => page.props.appName || 'CNPOS')
-
-// Check environment
-const isDevelopment = computed(() => {
-  return window.location.hostname === 'localhost' || 
-         window.location.hostname === '127.0.0.1'
-})
-
-const isHTTPS = computed(() => {
-  return window.location.protocol === 'https:'
-})
 
 // SweetAlert notifications
 if (page.props.flash.success) {
@@ -95,149 +73,49 @@ if (page.props.flash.error) {
   })
 }
 
-// Service Worker Registration dengan error handling
+// Service Worker Registration
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/serviceworker.js')
-      .then(reg => {
-        console.log('✅ SW registered successfully:', reg)
-        swStatus.value = 'Registered'
-        
-        // Check jika service worker aktif
-        if (reg.active) {
-          swStatus.value = 'Active'
-        } else if (reg.installing) {
-          swStatus.value = 'Installing'
-        } else if (reg.waiting) {
-          swStatus.value = 'Waiting'
-        }
-      })
-      .catch(err => {
-        console.log('❌ SW registration failed:', err)
-        swStatus.value = `Failed: ${err.message}`
-      })
   })
-} else {
-  swStatus.value = 'Not Supported'
-}
-
-// Check manifest accessibility
-const checkManifest = async () => {
-  try {
-    const response = await fetch('/manifest.json')
-    if (response.ok) {
-      const manifest = await response.json()
-      console.log('✅ Manifest loaded:', manifest)
-      manifestStatus.value = 'Loaded'
-      return true
-    } else {
-      console.log('❌ Manifest HTTP error:', response.status)
-      manifestStatus.value = `HTTP ${response.status}`
-      return false
-    }
-  } catch (error) {
-    console.log('❌ Manifest fetch failed:', error)
-    manifestStatus.value = `Error: ${error.message}`
-    return false
-  }
 }
 
 // fungsi cek apakah boleh menampilkan tombol install
 function canShowInstallBtn() {
-  // Di production, selalu tampilkan (kecuali user sudah reject)
-  if (!isDevelopment.value) {
-    const lastReject = localStorage.getItem(LAST_REJECT_KEY)
-    if (!lastReject) return true
-    
-    const lastRejectTime = new Date(lastReject).getTime()
-    const now = Date.now()
-    const diffDays = (now - lastRejectTime) / (1000 * 60 * 60 * 24)
-    return diffDays >= HIDE_DAYS
-  }
+  const lastReject = localStorage.getItem(LAST_REJECT_KEY)
+  if (!lastReject) return true
   
-  // Di development, selalu tampilkan untuk testing
-  return true
+  const lastRejectTime = new Date(lastReject).getTime()
+  const now = Date.now()
+  const diffDays = (now - lastRejectTime) / (1000 * 60 * 60 * 24)
+  return diffDays >= HIDE_DAYS
 }
 
-// Check PWA requirements
-const checkPWARequirements = async () => {
-  console.log('🔍 Checking PWA Requirements for Installation...')
-  
-  const requirements = {
-    https: isHTTPS.value,
-    serviceWorker: 'serviceWorker' in navigator,
-    manifest: await checkManifest(),
-    beforeInstallPrompt: !!deferredPrompt
-  }
-  
-  console.log('📋 PWA Installation Requirements:', requirements)
-  
-  // Log specific issues
-  if (!requirements.https) {
-    console.log('⚠️ PWA requires HTTPS in production')
-  }
-  if (!requirements.serviceWorker) {
-    console.log('⚠️ Service Worker not supported')
-  }
-  if (!requirements.manifest) {
-    console.log('⚠️ Manifest not accessible')
-  }
-  if (!requirements.beforeInstallPrompt) {
-    console.log('⚠️ beforeinstallprompt event not fired')
-  }
-  
-  return requirements
-}
-
-onMounted(async () => {
-  console.log('🚀 AppLayout mounted - PWA Initialization')
-  
-  // Check requirements
-  await checkPWARequirements()
-  
+onMounted(() => {
   // Event listener untuk PWA installation prompt
   window.addEventListener('beforeinstallprompt', (e) => {
-    console.log('🎯 beforeinstallprompt event fired!', e)
-    
     e.preventDefault()
     deferredPrompt = e
 
     if (canShowInstallBtn()) {
-      console.log('✅ Showing install button')
       showInstall.value = true
-    } else {
-      console.log('⏸️ Install button hidden (user recently rejected)')
     }
   })
 
   // Event listener untuk app installed
-  window.addEventListener('appinstalled', (evt) => {
-    console.log('🎉 PWA was successfully installed!', evt)
+  window.addEventListener('appinstalled', () => {
     showInstall.value = false
     deferredPrompt = null
   })
 
   // Check jika app sudah running sebagai PWA
   if (window.matchMedia('(display-mode: standalone)').matches) {
-    console.log('📱 App running in standalone mode (already installed)')
     showInstall.value = false
   }
-
-  // Additional check setelah 3 detik
-  setTimeout(() => {
-    if (!showInstall.value && !deferredPrompt) {
-      console.log('ℹ️ Install button not showing. Possible reasons:')
-      console.log('- App already installed')
-      '- beforeinstallprompt event not fired by browser'
-      '- PWA requirements not met'
-      '- User recently rejected installation'
-    }
-  }, 3000)
 })
 
 const installApp = async () => {
   if (!deferredPrompt) {
-    console.log('❌ No install prompt available')
     Swal.fire({
       icon: 'error',
       title: 'Error',
@@ -247,17 +125,13 @@ const installApp = async () => {
   }
 
   try {
-    console.log('🔄 Showing install prompt...')
-    
     // Tampilkan prompt install
     deferredPrompt.prompt()
     
     // Tunggu user memilih
     const { outcome } = await deferredPrompt.userChoice
-    console.log('📱 User response:', outcome)
 
     if (outcome === 'accepted') {
-      console.log('✅ User accepted PWA installation')
       Swal.fire({
         icon: 'success',
         title: 'Berhasil!',
@@ -265,7 +139,6 @@ const installApp = async () => {
         timer: 2000
       })
     } else {
-      console.log('❌ User declined PWA installation')
       // Simpan waktu penolakan
       localStorage.setItem(LAST_REJECT_KEY, new Date().toISOString())
       
@@ -282,7 +155,6 @@ const installApp = async () => {
     deferredPrompt = null
     
   } catch (error) {
-    console.error('❌ Install error:', error)
     Swal.fire({
       icon: 'error',
       title: 'Error',
@@ -293,7 +165,5 @@ const installApp = async () => {
 </script>
 
 <style scoped>
-.alert-info {
-  font-size: 0.875rem;
-}
+/* Style tetap sama jika diperlukan */
 </style>

@@ -16,7 +16,7 @@
             href="/dashboard"
             :class="{ active: currentUrl.startsWith('/dashboard') }"
           >
-            Dashboard
+            <i class="fas fa-tachometer-alt me-2"></i>Dashboard
           </Link>
         </li>
         <li>
@@ -25,55 +25,75 @@
             href="/products"
             :class="{ active: currentUrl.startsWith('/products') }"
           >
-            Produk
+            <i class="fas fa-box me-2"></i>Produk
           </Link>
         </li>
+
+        <!-- Menu hanya untuk Admin & Manager -->
+        <template v-if="canAccessManagement">
+          <!-- Dropdown Stok - DIPINDAHKAN DI BAWAH PRODUK -->
+          <li class="dropdown-menu-stock">
+            <a 
+              class="nav-link text-white dropdown-toggle d-flex align-items-center" 
+              href="#" 
+              @click.prevent="toggleStockDropdown"
+              :class="{ active: isStockMenuActive }"
+            >
+              <i class="fas fa-warehouse me-2"></i>
+              <span class="flex-grow-1">Manajemen Stok</span>
+              <i class="fas fa-chevron-down dropdown-arrow" :class="{ 'rotate-180': stockDropdownOpen }"></i>
+            </a>
+            <ul class="dropdown-submenu list-unstyled" :class="{ show: stockDropdownOpen }">
+              <li>
+                <Link
+                  class="nav-link text-white"
+                  href="/stock"
+                  :class="{ active: currentUrl.startsWith('/stock') && !currentUrl.startsWith('/stock-loan') && !currentUrl.startsWith('/stock-transfers') }"
+                >
+                  <i class="fas fa-boxes me-2"></i>Stok Produk
+                </Link>
+              </li>
+              <li>
+                <Link
+                  class="nav-link text-white"
+                  href="/stock-loan"
+                  :class="{ active: currentUrl.startsWith('/stock-loan') }"
+                >
+                  <i class="fas fa-handshake me-2"></i>Pinjam Stock
+                </Link>
+              </li>
+              <li>
+                <Link
+                  class="nav-link text-white"
+                  href="/stock-transfers"
+                  :class="{ active: currentUrl.startsWith('/stock-transfers') }"
+                >
+                  <i class="fas fa-truck-loading me-2"></i>Stok Transfer
+                </Link>
+              </li>
+            </ul>
+          </li>
+        </template>
+
         <li>
           <Link
             class="nav-link text-white"
             href="/sales"
             :class="{ active: currentUrl.startsWith('/sales') }"
           >
-            Penjualan
+            <i class="fas fa-shopping-cart me-2"></i>Penjualan
           </Link>
         </li>
 
-        <!-- Menu hanya untuk Admin & Manager -->
+        <!-- Menu hanya untuk Admin & Manager (lanjutan) -->
         <template v-if="canAccessManagement">
-          <li>
-            <Link
-              class="nav-link text-white"
-              href="/stock"
-              :class="{ active: /^\/stock(\/|$)/.test(currentUrl) }"
-            >
-              Stok
-            </Link>
-          </li>
-          <li>
-            <Link
-              class="nav-link text-white"
-              href="/stock-loan"
-              :class="{ active: /^\/stock-loan(\/|$)/.test(currentUrl) }"
-            >
-              Pinjam Stock
-            </Link>
-          </li>
-          <li>
-            <Link
-              class="nav-link text-white"
-              href="/stock-transfers"
-              :class="{ active: /^\/stock-transfers(\/|$)/.test(currentUrl) }"
-            >
-              Stok Transfer
-            </Link>
-          </li>
           <li>
             <Link
               class="nav-link text-white"
               href="/reports"
               :class="{ active: currentUrl.startsWith('/reports') }"
             >
-              Laporan
+              <i class="fas fa-chart-bar me-2"></i>Laporan
             </Link>
           </li>
         </template>
@@ -85,7 +105,7 @@
             href="/stores"
             :class="{ active: currentUrl.startsWith('/stores') }"
           >
-            Toko
+            <i class="fas fa-store me-2"></i>Toko
           </Link>
         </li>
         <li v-if="isAdmin">
@@ -93,8 +113,8 @@
             class="nav-link text-white"
             href="/users"
             :class="{ active: currentUrl.startsWith('/users') }"
-          >
-            Users
+            >
+            <i class="fas fa-users me-2"></i>Users
           </Link>
         </li>
         
@@ -104,7 +124,7 @@
             href="/pc-assembly"
             :class="{ active: currentUrl.startsWith('/pc-assembly') }"
           >
-            Rakitan PC
+            <i class="fas fa-desktop me-2"></i>Rakitan PC
           </Link>
         </li>
 
@@ -121,7 +141,8 @@
 
         <!-- Tombol Logout -->
         <li class="mt-3 px-2">
-          <button class="btn btn-danger w-100" @click="confirmLogout">
+          <button class="btn btn-danger w-100 d-flex align-items-center justify-content-center gap-2" @click="confirmLogout">
+            <i class="fas fa-sign-out-alt"></i>
             Sign Out
           </button>
         </li>
@@ -131,13 +152,16 @@
     <!-- Page Header tetap di atas -->
     <div class="page-header d-flex justify-content-between align-items-center p-2 bg-secondary text-white">
       <!-- tombol menu -->
-      <button type="button" class="btn btn-dark" @click="toggleSidebar">
-        <span class="hamb-top">☰ MENU</span>
+      <button type="button" class="btn btn-dark d-flex align-items-center gap-2" @click="toggleSidebar">
+        <i class="fas fa-bars"></i>
+        <span class="hamb-top">MENU</span>
       </button>
 
       <!-- nama user -->
-      <div class="fw-bold">
-        👤 {{ userName }} <span class="badge bg-light text-dark ms-1">{{ userRoleName }}</span>
+      <div class="fw-bold d-flex align-items-center gap-2">
+        <i class="fas fa-user"></i>
+        {{ userName }} 
+        <span class="badge bg-light text-dark ms-1">{{ userRoleName }}</span>
       </div>
     </div>
 
@@ -151,12 +175,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { Link, router, usePage } from '@inertiajs/vue3'
 import Swal from 'sweetalert2'
 
 const page = usePage()
 const isOpen = ref(false)
+const stockDropdownOpen = ref(false)
 
 // ✅ PWA Installation State
 const deferredPrompt = ref(null)
@@ -207,15 +232,35 @@ const canAccessManagement = computed(() => {
   return isAdmin.value || isManager.value
 })
 
+// Check if any stock-related menu is active
+const isStockMenuActive = computed(() => {
+  return currentUrl.value.startsWith('/stock') || 
+         currentUrl.value.startsWith('/stock-loan') || 
+         currentUrl.value.startsWith('/stock-transfers')
+})
+
+// Watch for URL changes and auto-open dropdown if active
+watch(currentUrl, (newUrl) => {
+  if (isStockMenuActive.value) {
+    stockDropdownOpen.value = true
+  } else {
+    stockDropdownOpen.value = false
+  }
+}, { immediate: true })
+
 const toggleSidebar = () => {
   isOpen.value = !isOpen.value
+}
+
+const toggleStockDropdown = () => {
+  stockDropdownOpen.value = !stockDropdownOpen.value
 }
 
 // ✅ PWA Installation Functions
 const handleBeforeInstallPrompt = (e) => {
   console.log('🚀 beforeinstallprompt event fired')
   
-  // Prevent the mini-infobar from appearing on mobile
+  // Prevent the mini-infibar from appearing on mobile
   e.preventDefault()
   
   // Stash the event so it can be triggered later
@@ -446,6 +491,7 @@ const confirmLogout = () => {
   padding: 0.6rem 1rem;
   text-decoration: none;
   color: white;
+  transition: all 0.3s ease;
 }
 .sidebar-nav li:hover {
   background: rgba(255, 255, 255, 0.1);
@@ -478,5 +524,97 @@ const confirmLogout = () => {
 
 .btn-success:active {
   transform: translateY(0);
+}
+
+/* ✅ PERBAIKAN: Style untuk dropdown menu stok */
+.dropdown-menu-stock {
+  position: relative;
+}
+
+.dropdown-menu-stock .dropdown-toggle {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 1rem;
+  text-decoration: none;
+  color: white;
+  transition: all 0.3s ease;
+}
+
+.dropdown-menu-stock .dropdown-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.dropdown-menu-stock .dropdown-toggle.active {
+  background-color: rgba(255, 255, 255, 0.15);
+  font-weight: bold;
+}
+
+.dropdown-arrow {
+  font-size: 0.8em;
+  transition: transform 0.3s ease;
+  margin-left: auto;
+}
+
+.rotate-180 {
+  transform: rotate(180deg);
+}
+
+.dropdown-submenu {
+  background: rgba(0, 0, 0, 0.2);
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.dropdown-submenu.show {
+  max-height: 200px;
+}
+
+.dropdown-submenu .nav-link {
+  padding: 0.5rem 1rem 0.5rem 2rem;
+  font-size: 0.9em;
+  border-left: 3px solid transparent;
+  display: flex;
+  align-items: center;
+}
+
+.dropdown-submenu .nav-link:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-left-color: #007bff;
+}
+
+.dropdown-submenu .nav-link.active {
+  background: rgba(255, 255, 255, 0.1);
+  border-left-color: #007bff;
+  font-weight: 600;
+}
+
+/* Icons spacing - PERBAIKAN: lebih rapat */
+.nav-link i {
+  width: 16px;
+  text-align: center;
+}
+
+/* Pastikan teks sejajar dengan icon */
+.nav-link {
+  display: flex;
+  align-items: center;
+}
+
+/* Page header improvements */
+.page-header .btn-dark {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.page-header .btn-dark:hover {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+/* Hilangkan padding extra pada dropdown toggle */
+.dropdown-menu-stock .dropdown-toggle {
+  padding: 0.6rem 1rem;
 }
 </style>
