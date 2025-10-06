@@ -1,8 +1,7 @@
 <template>
     <AppLayout>
         <!-- Header -->
-        <div
-            class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-3">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-3">
             <h2>Daftar Produk</h2>
 
             <div class="mt-2 mt-md-0">
@@ -164,37 +163,61 @@
             </button>
         </div>
 
-        <!-- Pagination -->
+        <!-- ✅ PERBAIKAN: Pagination yang lebih baik -->
         <nav class="mt-3">
-            <ul class="pagination justify-content-center">
+            <ul class="pagination justify-content-center flex-wrap">
+                <!-- Previous Button -->
                 <li :class="['page-item', { disabled: currentPage === 1 }]">
-                    <button class="page-link" @click="prevPage">&laquo;</button>
+                    <button class="page-link" @click="prevPage" :disabled="currentPage === 1">
+                        &laquo;
+                    </button>
                 </li>
 
-                <li v-if="visiblePages[0] > 1" class="page-item">
+                <!-- First Page -->
+                <li v-if="showFirstPage" class="page-item">
                     <button class="page-link" @click="goToPage(1)">1</button>
                 </li>
 
-                <li v-if="visiblePages[0] > 2" class="page-item disabled">
+                <!-- First Ellipsis -->
+                <li v-if="showFirstEllipsis" class="page-item disabled">
                     <span class="page-link">...</span>
                 </li>
 
-                <li v-for="page in visiblePages" :key="page" :class="['page-item', { active: currentPage === page }]">
-                    <button class="page-link" @click="goToPage(page)">{{ page }}</button>
+                <!-- Page Numbers -->
+                <li 
+                    v-for="page in visiblePages" 
+                    :key="page" 
+                    :class="['page-item', { active: currentPage === page }]"
+                >
+                    <button class="page-link" @click="goToPage(page)">
+                        {{ page }}
+                    </button>
                 </li>
 
-                <li v-if="visiblePages[visiblePages.length - 1] < totalPages - 1" class="page-item disabled">
+                <!-- Second Ellipsis -->
+                <li v-if="showSecondEllipsis" class="page-item disabled">
                     <span class="page-link">...</span>
                 </li>
 
-                <li v-if="visiblePages[visiblePages.length - 1] < totalPages" class="page-item">
-                    <button class="page-link" @click="goToPage(totalPages)">{{ totalPages }}</button>
+                <!-- Last Page -->
+                <li v-if="showLastPage" class="page-item">
+                    <button class="page-link" @click="goToPage(totalPages)">
+                        {{ totalPages }}
+                    </button>
                 </li>
 
+                <!-- Next Button -->
                 <li :class="['page-item', { disabled: currentPage === totalPages }]">
-                    <button class="page-link" @click="nextPage">&raquo;</button>
+                    <button class="page-link" @click="nextPage" :disabled="currentPage === totalPages">
+                        &raquo;
+                    </button>
                 </li>
             </ul>
+
+            <!-- Info Pagination -->
+            <div class="text-center text-muted small mt-2">
+                Menampilkan {{ startItem }}-{{ endItem }} dari {{ filteredProducts.length }} produk
+            </div>
         </nav>
 
         <!-- Modal Manage Kategori hanya untuk Admin & Manager -->
@@ -264,20 +287,15 @@
     // ✅ COMPUTED: Cek apakah user bisa manage products (Admin atau Manager)
     const canManageProducts = computed(() => {
         const userRole = page.props.auth?.user?.role_id
-        // Asumsi: role_id 1 = Admin, role_id 2 = Manager, role_id 3 = Kasir
         return userRole === 1 || userRole === 2
     })
 
     // ✅ COMPUTED: Hitung jumlah kolom berdasarkan role
     const getColspanCount = computed(() => {
-        // Base columns untuk Kasir: SKU, Nama, Harga Jual, Diskon, Stok = 5 columns
-        let count = 5
-        
-        // Tambahan untuk Admin & Manager
+        let count = 5 // Base columns untuk Kasir
         if (canManageProducts.value) {
             count += 4 // Checkbox, Modal, Ditambahkan, Aksi
         }
-        
         return count
     })
 
@@ -306,7 +324,7 @@
     // --- FILTER SECTION ---
     const productList = ref([...props.products])
     const filteredProducts = computed(() => {
-    let list = [...productList.value] // pakai reactive array
+    let list = [...productList.value]
 
     if (searchQuery.value) {
         const query = searchQuery.value.toLowerCase()
@@ -328,7 +346,7 @@
     return list
     })
 
-    // PAGINATTION SECTION
+    // ✅ PERBAIKAN: Pagination dengan logic yang lebih baik
     const totalPages = computed(() => Math.ceil(filteredProducts.value.length / perPage.value) || 1)
 
     const paginatedProducts = computed(() => {
@@ -337,37 +355,82 @@
         return filteredProducts.value.slice(start, end)
     })
 
+    // ✅ PERBAIKAN: Visible pages dengan mobile-friendly (max 5 pages)
     const visiblePages = computed(() => {
         const pages = []
-        if (totalPages.value <= 5) {
-            for (let i = 1; i <= totalPages.value; i++) pages.push(i)
-            return pages
+        const maxVisible = 5 // Maximum pages to show
+        const delta = 2 // Pages to show before and after current page
+
+        let start = Math.max(1, currentPage.value - delta)
+        let end = Math.min(totalPages.value, currentPage.value + delta)
+
+        // Adjust if we're near the start
+        if (currentPage.value - delta <= 1) {
+            end = Math.min(totalPages.value, maxVisible)
         }
-        const delta = 2
-        let start = Math.max(2, currentPage.value - delta)
-        let end = Math.min(totalPages.value - 1, currentPage.value + delta)
-        if (currentPage.value - delta <= 1) end = 5
-        if (currentPage.value + delta >= totalPages.value) start = totalPages.value - 4
-        for (let i = start; i <= end; i++) pages.push(i)
+
+        // Adjust if we're near the end
+        if (currentPage.value + delta >= totalPages.value) {
+            start = Math.max(1, totalPages.value - maxVisible + 1)
+        }
+
+        for (let i = start; i <= end; i++) {
+            pages.push(i)
+        }
+
         return pages
+    })
+
+    // ✅ PERBAIKAN: Pagination controls visibility
+    const showFirstPage = computed(() => {
+        return visiblePages.value.length > 0 && visiblePages.value[0] > 1
+    })
+
+    const showFirstEllipsis = computed(() => {
+        return showFirstPage.value && visiblePages.value[0] > 2
+    })
+
+    const showLastPage = computed(() => {
+        return visiblePages.value.length > 0 && visiblePages.value[visiblePages.value.length - 1] < totalPages.value
+    })
+
+    const showSecondEllipsis = computed(() => {
+        return showLastPage.value && visiblePages.value[visiblePages.value.length - 1] < totalPages.value - 1
+    })
+
+    // ✅ PERBAIKAN: Pagination info
+    const startItem = computed(() => {
+        return (currentPage.value - 1) * perPage.value + 1
+    })
+
+    const endItem = computed(() => {
+        return Math.min(currentPage.value * perPage.value, filteredProducts.value.length)
     })
 
     // --- Methods ---
     const goToPage = (page) => {
-        if (page >= 1 && page <= totalPages.value) currentPage.value = page
+        if (page >= 1 && page <= totalPages.value) {
+            currentPage.value = page
+            // Scroll to top when changing page
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+        }
     }
+
     const prevPage = () => goToPage(currentPage.value - 1)
     const nextPage = () => goToPage(currentPage.value + 1)
 
+    watch([searchQuery, selectedCategory], () => {
+        // Reset to first page when filtering
+        currentPage.value = 1
+    })
+
     watch([searchQuery, perPage, currentPage], async () => {
       tableLoading.value = true
-      // simulasi delay supaya spinner kelihatan (hapus di real API)
       await new Promise(resolve => setTimeout(resolve, 400)) 
       tableLoading.value = false
     })
 
     // CATEGORI SECTION CODE
-    // daftar kategori yang sudah diurutkan A-Z
     const sortedCategories = computed(() => {
     return [...categories.value].sort((a, b) =>
         a.name.localeCompare(b.name, 'id', { sensitivity: 'base' })
@@ -472,9 +535,7 @@
             await axios.post(`/products/${id}`, {
             _method: 'delete'
             })
-            // hapus dari reactive array
             productList.value = productList.value.filter(p => p.id !== id)
-
             Swal.fire('Berhasil!', 'Produk berhasil dihapus.', 'success')
         } catch (err) {
             Swal.fire('Gagal!', err.response?.data?.message || 'Terjadi kesalahan.', 'error')
@@ -524,13 +585,11 @@
             await axios.post('/products/bulk-delete', {
             ids: selectedProducts.value
             })
-            // hapus dari reactive array
             productList.value = productList.value.filter(
             p => !selectedProducts.value.includes(p.id)
             )
             selectedProducts.value = []
             selectAll.value = false
-
             Swal.fire('Berhasil!', 'Produk berhasil dihapus.', 'success')
         } catch (err) {
             Swal.fire('Gagal!', err.response?.data?.message || 'Terjadi kesalahan.', 'error')
@@ -554,5 +613,27 @@
 
     .btn.btn-sm{
         padding: 7px 14px;
+    }
+
+    /* ✅ PERBAIKAN: Pagination responsive */
+    .pagination {
+        flex-wrap: wrap;
+        gap: 2px;
+    }
+
+    .page-item .page-link {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.875rem;
+    }
+
+    @media (max-width: 576px) {
+        .page-item .page-link {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.8rem;
+        }
+        
+        .pagination {
+            gap: 1px;
+        }
     }
 </style>

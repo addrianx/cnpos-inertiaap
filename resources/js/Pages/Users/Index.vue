@@ -22,12 +22,12 @@
                     class="form-control" 
                 />
                 <select v-model="selectedStatus" class="form-select w-auto">
-                    <option value="">Semua Status</option>
+                    <option value="">Status</option>
                     <option value="active">Aktif</option>
                     <option value="suspended">Ditangguhkan</option>
                 </select>
                 <select v-model="selectedRole" class="form-select w-auto">
-                    <option value="">Semua Role</option>
+                    <option value="">Role</option>
                     <option v-for="role in roles" :key="role.id" :value="role.id">
                         {{ role.name }}
                     </option>
@@ -168,9 +168,10 @@
 
 <script setup>
     import { ref, computed, watch } from 'vue'
-    import { Link, router } from '@inertiajs/vue3'
+    import { Link } from '@inertiajs/vue3'
     import AppLayout from '@/Layouts/AppLayout.vue'
     import Swal from 'sweetalert2'
+    import axios from 'axios'
 
     const props = defineProps({
         users: Array,
@@ -269,8 +270,27 @@
         }
     }
 
-    const confirmSuspend = (user) => {
+    const showSuccessAlert = (message) => {
         Swal.fire({
+            title: 'Berhasil!',
+            text: message,
+            icon: 'success',
+            confirmButtonColor: '#28a745',
+            timer: 2000
+        })
+    }
+
+    const showErrorAlert = (message) => {
+        Swal.fire({
+            title: 'Error!',
+            text: message,
+            icon: 'error',
+            confirmButtonColor: '#dc3545'
+        })
+    }
+
+    const confirmSuspend = async (user) => {
+        const result = await Swal.fire({
             title: 'Konfirmasi Suspend',
             text: `Apakah Anda yakin ingin menangguhkan user ${user.name}?`,
             icon: 'warning',
@@ -279,24 +299,43 @@
             cancelButtonColor: '#6c757d',
             confirmButtonText: 'Ya, tangguhkan!',
             cancelButtonText: 'Batal',
-        }).then((result) => {
-            if (result.isConfirmed) {
-                router.post(`/users/${user.id}/suspend`, {}, {
-                    onSuccess: () => {
-                        // Update local state
-                        const index = userList.value.findIndex(u => u.id === user.id)
-                        if (index !== -1) {
-                            userList.value[index].is_active = false
-                            userList.value[index].suspended_at = new Date().toISOString()
-                        }
-                    }
-                })
-            }
         })
+
+        if (result.isConfirmed) {
+            try {
+                tableLoading.value = true
+                
+                // SESUAI DENGAN ROUTE LARAVEL: menggunakan POST
+                const response = await axios.post(`/users/${user.id}/suspend`)
+                
+                if (response.data.success) {
+                    // Update local state
+                    const index = userList.value.findIndex(u => u.id === user.id)
+                    if (index !== -1) {
+                        userList.value[index].is_active = false
+                        userList.value[index].suspended_at = new Date().toISOString()
+                    }
+                    showSuccessAlert(`User ${user.name} berhasil ditangguhkan`)
+                }
+            } catch (error) {
+                console.error('Error suspending user:', error)
+                if (error.response?.status === 403) {
+                    showErrorAlert('Anda tidak memiliki izin untuk menangguhkan user ini')
+                } else if (error.response?.status === 405) {
+                    showErrorAlert('Method tidak didukung. Silakan hubungi administrator.')
+                } else if (error.response?.data?.message) {
+                    showErrorAlert(error.response.data.message)
+                } else {
+                    showErrorAlert('Terjadi kesalahan saat menangguhkan user')
+                }
+            } finally {
+                tableLoading.value = false
+            }
+        }
     }
 
-    const confirmActivate = (user) => {
-        Swal.fire({
+    const confirmActivate = async (user) => {
+        const result = await Swal.fire({
             title: 'Konfirmasi Aktivasi',
             text: `Apakah Anda yakin ingin mengaktifkan user ${user.name}?`,
             icon: 'question',
@@ -305,24 +344,43 @@
             cancelButtonColor: '#6c757d',
             confirmButtonText: 'Ya, aktifkan!',
             cancelButtonText: 'Batal',
-        }).then((result) => {
-            if (result.isConfirmed) {
-                router.post(`/users/${user.id}/activate`, {}, {
-                    onSuccess: () => {
-                        // Update local state
-                        const index = userList.value.findIndex(u => u.id === user.id)
-                        if (index !== -1) {
-                            userList.value[index].is_active = true
-                            userList.value[index].suspended_at = null
-                        }
-                    }
-                })
-            }
         })
+
+        if (result.isConfirmed) {
+            try {
+                tableLoading.value = true
+                
+                // SESUAI DENGAN ROUTE LARAVEL: menggunakan POST
+                const response = await axios.post(`/users/${user.id}/activate`)
+                
+                if (response.data.success) {
+                    // Update local state
+                    const index = userList.value.findIndex(u => u.id === user.id)
+                    if (index !== -1) {
+                        userList.value[index].is_active = true
+                        userList.value[index].suspended_at = null
+                    }
+                    showSuccessAlert(`User ${user.name} berhasil diaktifkan`)
+                }
+            } catch (error) {
+                console.error('Error activating user:', error)
+                if (error.response?.status === 403) {
+                    showErrorAlert('Anda tidak memiliki izin untuk mengaktifkan user ini')
+                } else if (error.response?.status === 405) {
+                    showErrorAlert('Method tidak didukung. Silakan hubungi administrator.')
+                } else if (error.response?.data?.message) {
+                    showErrorAlert(error.response.data.message)
+                } else {
+                    showErrorAlert('Terjadi kesalahan saat mengaktifkan user')
+                }
+            } finally {
+                tableLoading.value = false
+            }
+        }
     }
 
-    const confirmDelete = (user) => {
-        Swal.fire({
+    const confirmDelete = async (user) => {
+        const result = await Swal.fire({
             title: 'Konfirmasi Hapus',
             text: `Apakah Anda yakin ingin menghapus user ${user.name}? Tindakan ini tidak dapat dibatalkan!`,
             icon: 'warning',
@@ -331,16 +389,49 @@
             cancelButtonColor: '#6c757d',
             confirmButtonText: 'Ya, hapus!',
             cancelButtonText: 'Batal',
-        }).then((result) => {
-            if (result.isConfirmed) {
-                router.delete(`/users/${user.id}`, {
-                    onSuccess: () => {
-                        // Remove from local state
-                        userList.value = userList.value.filter(u => u.id !== user.id)
-                    }
-                })
-            }
         })
+
+        if (result.isConfirmed) {
+            try {
+                tableLoading.value = true
+                
+                // Menggunakan POST dengan _method=DELETE untuk menghindari 403
+                const response = await axios.post(`/users/${user.id}`, {
+                    _method: 'DELETE'
+                })
+                
+                if (response.data.success) {
+                    // Remove from local state
+                    userList.value = userList.value.filter(u => u.id !== user.id)
+                    showSuccessAlert(`User ${user.name} berhasil dihapus`)
+                }
+            } catch (error) {
+                console.error('Error deleting user:', error)
+                if (error.response?.status === 403) {
+                    showErrorAlert('Anda tidak memiliki izin untuk menghapus user ini')
+                } else if (error.response?.status === 404) {
+                    showErrorAlert('User tidak ditemukan')
+                } else if (error.response?.status === 405) {
+                    // Coba alternatif method
+                    try {
+                        const altResponse = await axios.delete(`/users/${user.id}`)
+                        if (altResponse.data.success) {
+                            userList.value = userList.value.filter(u => u.id !== user.id)
+                            showSuccessAlert(`User ${user.name} berhasil dihapus`)
+                            return
+                        }
+                    } catch (altError) {
+                        showErrorAlert('Method tidak didukung. Silakan hubungi administrator.')
+                    }
+                } else if (error.response?.data?.message) {
+                    showErrorAlert(error.response.data.message)
+                } else {
+                    showErrorAlert('Terjadi kesalahan saat menghapus user')
+                }
+            } finally {
+                tableLoading.value = false
+            }
+        }
     }
 
     watch([searchQuery, perPage, currentPage, selectedStatus, selectedRole], async () => {

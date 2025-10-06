@@ -21,6 +21,101 @@ use App\Http\Controllers\UserController;
 
 use Inertia\Inertia;
 
+Route::get('/manifest.json', function () {
+    $manifest = [
+        "name" => "POS Toko",
+        "short_name" => "POS", 
+        "start_url" => "/",
+        "display" => "standalone",
+        "background_color" => "#ffffff",
+        "theme_color" => "#0d6efd",
+        "icons" => [
+            [
+                "src" => "/icons/icon-192x192.png",
+                "sizes" => "192x192", 
+                "type" => "image/png",
+                "purpose" => "any maskable"
+            ],
+            [
+                "src" => "/icons/icon-512x512.png",
+                "sizes" => "512x512",
+                "type" => "image/png", 
+                "purpose" => "any maskable"
+            ]
+        ]
+    ];
+
+    return Response::json($manifest)
+        ->header('Content-Type', 'application/json')
+        ->header('Access-Control-Allow-Origin', '*')
+        ->header('Cache-Control', 'public, max-age=86400');
+});
+
+// Service Worker via Laravel Route - SESUAI NAMA FILE  
+Route::get('/serviceworker.js', function () {
+    $swPath = public_path('serviceworker.js');
+    
+    if (!File::exists($swPath)) {
+        // Create basic service worker jika tidak ada
+        $swContent = <<<'EOT'
+        const CACHE_NAME = 'pos-cache-v1';
+        const urlsToCache = [
+            '/',
+            '/icons/icon-192x192.png', 
+            '/icons/icon-512x512.png',
+            '/manifest.json'
+        ];
+
+        self.addEventListener('install', (event) => {
+            console.log('🚀 Service Worker Installing...');
+            event.waitUntil(
+                caches.open(CACHE_NAME)
+                    .then((cache) => {
+                        console.log('📦 Opened cache');
+                        return cache.addAll(urlsToCache);
+                    })
+            );
+        });
+
+        self.addEventListener('fetch', (event) => {
+            event.respondWith(
+                caches.match(event.request)
+                    .then((response) => {
+                        return response || fetch(event.request);
+                    })
+            );
+        });
+
+        self.addEventListener('activate', (event) => {
+            console.log('🔥 Service Worker Activated');
+        });
+        EOT;
+    } else {
+        $swContent = File::get($swPath);
+    }
+
+    return Response::make($swContent, 200, [
+        'Content-Type' => 'application/javascript',
+        'Service-Worker-Allowed' => '/',
+        'Cache-Control' => 'public, max-age=3600'
+    ]);
+});
+
+// Icons route
+Route::get('/icons/{file}', function ($file) {
+    $path = public_path("icons/{$file}");
+    
+    if (!File::exists($path)) {
+        abort(404);
+    }
+
+    return Response::file($path, [
+        'Content-Type' => 'image/png',
+        'Cache-Control' => 'public, max-age=2592000',
+        'Access-Control-Allow-Origin' => '*'
+    ]);
+});
+
 Route::get('/', [AuthenticatedSessionController::class, 'create'])->name('login');
 Route::post('/set-password', [SetPasswordController::class, 'store'])->name('set-password.store');
 Route::get('/', function () {
@@ -29,6 +124,8 @@ Route::get('/', function () {
     }
     return redirect()->route('login');
 });
+
+
 
 Route::middleware(['auth', 'verified'])->group(function () {
     

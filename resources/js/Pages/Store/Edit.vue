@@ -8,12 +8,12 @@
     <div class="card">
       <div class="card-header bg-dark text-white">Form Edit Toko</div>
       <div class="card-body">
-        <form @submit.prevent="updateStore">
+        <form @submit.prevent="submit">
           <!-- Nama Toko -->
           <div class="mb-3">
             <label class="form-label">Nama Toko</label>
             <input
-              v-model="formStore.name"
+              v-model="form.name"
               type="text"
               class="form-control"
               placeholder="Masukkan nama toko"
@@ -25,7 +25,7 @@
           <div class="mb-3">
             <label class="form-label">Alamat</label>
             <textarea
-              v-model="formStore.address"
+              v-model="form.address"
               class="form-control"
               rows="3"
               placeholder="Alamat lengkap toko"
@@ -43,7 +43,7 @@
                   class="form-check-input"
                   :id="'user-' + user.id"
                   :value="user.id"
-                  v-model="formStore.user_ids"
+                  v-model="form.user_ids"
                 />
                 <label class="form-check-label d-flex align-items-center gap-2" :for="'user-' + user.id">
                   <div>
@@ -66,7 +66,10 @@
           </div>
 
           <!-- Tombol Update -->
-          <button type="submit" class="btn btn-success">Update Toko</button>
+          <button type="submit" class="btn btn-success" :disabled="loading">
+            <span v-if="loading" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+            {{ loading ? 'Sedang menyimpan...' : 'Update Toko' }}
+          </button>
         </form>
       </div>
     </div>
@@ -74,17 +77,21 @@
 </template>
 
 <script setup>
-import { Link, router } from '@inertiajs/vue3'
+import { Link, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Swal from 'sweetalert2'
-import { reactive } from 'vue'
+import { ref, onMounted } from 'vue'
+import axios from 'axios'
 
 const props = defineProps({
   store: Object,
   users: Array,
 })
 
-const formStore = reactive({
+const loading = ref(false)
+
+// Gunakan reactive object biasa untuk form
+const form = ref({
   name: props.store.name,
   address: props.store.address,
   user_ids: props.store.users?.map(u => u.id) || [],
@@ -92,7 +99,6 @@ const formStore = reactive({
 
 // ✅ PERBAIKAN: Ambil role_id dari relationship
 const getUserRoleId = (user) => {
-  // Akses role melalui relationship
   return user.roles?.[0]?.id || null
 }
 
@@ -118,14 +124,48 @@ const isCurrentStoreUser = (userId) => {
   return props.store.users?.some(user => user.id === userId) || false
 }
 
-const updateStore = () => {
-  router.put(`/stores/${props.store.id}`, formStore, {
-    onSuccess: () => {
-      Swal.fire('Berhasil!', 'Toko berhasil diperbarui.', 'success')
-    },
-    onError: () => {
-      Swal.fire('Gagal!', 'Terjadi kesalahan saat memperbarui toko.', 'error')
-    },
-  })
+// ✅ PERBAIKAN: Gunakan axios.post dengan _method seperti form produk yang berhasil
+const submit = async () => {
+  loading.value = true
+  try {
+    const payload = {
+      _method: 'put', // Method spoofing untuk PUT request
+      name: form.value.name,
+      address: form.value.address,
+      user_ids: form.value.user_ids,
+    }
+
+    await axios.post(`/stores/${props.store.id}`, payload)
+    
+    Swal.fire({
+      title: 'Berhasil!',
+      text: 'Toko berhasil diperbarui.',
+      icon: 'success',
+      confirmButtonText: 'OK'
+    }).then(() => {
+      window.location.href = '/stores'
+    })
+    
+  } catch (err) {
+    console.error('Error updating store:', err.response?.data)
+    
+    Swal.fire({
+      title: 'Gagal!',
+      text: err.response?.data?.message || 'Terjadi kesalahan saat memperbarui toko.',
+      icon: 'error',
+      confirmButtonText: 'OK'
+    })
+  } finally {
+    loading.value = false
+  }
 }
+
+// Reset form saat mount untuk mencegah data tersimpan dari bfcache
+onMounted(() => {
+  form.value = {
+    name: props.store.name,
+    address: props.store.address,
+    user_ids: props.store.users?.map(u => u.id) || [],
+  }
+})
 </script>

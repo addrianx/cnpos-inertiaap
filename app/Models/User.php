@@ -66,5 +66,10 @@ class User extends Authenticatable
     {
         return $this->roles()->first()->id ?? null;
     }
+
+    public function setNameAttribute($value)
+    {
+        $this->attributes['name'] = ucwords(strtolower(trim($value)));
+    }
     
 }

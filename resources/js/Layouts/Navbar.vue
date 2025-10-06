@@ -108,6 +108,17 @@
           </Link>
         </li>
 
+        <!-- ✅ TAMBAHAN: Tombol Install PWA -->
+        <li v-if="showInstallButton" class="px-2 mt-2">
+          <button 
+            class="btn btn-success w-100 d-flex align-items-center justify-content-center gap-2"
+            @click="installPWA"
+          >
+            <i class="fas fa-download"></i>
+            Install App
+          </button>
+        </li>
+
         <!-- Tombol Logout -->
         <li class="mt-3 px-2">
           <button class="btn btn-danger w-100" @click="confirmLogout">
@@ -140,19 +151,17 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { Link, router, usePage } from '@inertiajs/vue3'
 import Swal from 'sweetalert2'
 
 const page = usePage()
 const isOpen = ref(false)
 
-// Debug: Tampilkan semua props yang tersedia
-onMounted(() => {
-  console.log('=== ALL PAGE PROPS ===', page.props)
-  console.log('=== AUTH DATA ===', page.props.auth)
-  console.log('=== USER DATA ===', page.props.auth?.user)
-})
+// ✅ PWA Installation State
+const deferredPrompt = ref(null)
+const showInstallButton = ref(false)
+const isInstalled = ref(false)
 
 // Gunakan usePage() untuk mengakses data
 const user = computed(() => {
@@ -167,11 +176,9 @@ const userName = computed(() => {
   return user.value?.name || 'Guest'
 })
 
-// Ambil role_id dari user - gunakan computed untuk reactivity
+// Ambil role_id dari user
 const userRoleId = computed(() => {
-  const roleId = user.value?.role_id
-  console.log('User Role ID:', roleId) // Debug
-  return roleId || null
+  return user.value?.role_id || null
 })
 
 const userRoleName = computed(() => {
@@ -180,39 +187,164 @@ const userRoleName = computed(() => {
     2: 'Manager', 
     3: 'Kasir'
   }
-  const roleName = roles[userRoleId.value] || 'Guest'
-  console.log('User Role Name:', roleName) // Debug
-  return roleName
+  return roles[userRoleId.value] || 'Guest'
 })
 
 const isAdmin = computed(() => {
-  const admin = userRoleId.value === 1
-  console.log('Is Admin:', admin) // Debug
-  return admin
+  return userRoleId.value === 1
 })
 
 const isManager = computed(() => {
-  const manager = userRoleId.value === 2
-  console.log('Is Manager:', manager) // Debug
-  return manager
+  return userRoleId.value === 2
 })
 
 const isCashier = computed(() => {
-  const cashier = userRoleId.value === 3
-  console.log('Is Cashier:', cashier) // Debug
-  return cashier
+  return userRoleId.value === 3
 })
 
 // Admin & Manager bisa akses management
 const canAccessManagement = computed(() => {
-  const canAccess = isAdmin.value || isManager.value
-  console.log('Can Access Management:', canAccess) // Debug
-  return canAccess
+  return isAdmin.value || isManager.value
 })
 
 const toggleSidebar = () => {
   isOpen.value = !isOpen.value
 }
+
+// ✅ PWA Installation Functions
+const handleBeforeInstallPrompt = (e) => {
+  console.log('🚀 beforeinstallprompt event fired')
+  
+  // Prevent the mini-infobar from appearing on mobile
+  e.preventDefault()
+  
+  // Stash the event so it can be triggered later
+  deferredPrompt.value = e
+  
+  // Update UI to notify the user they can install the PWA
+  showInstallButton.value = true
+  
+  console.log('✅ PWA install prompt ready to show')
+}
+
+const handleAppInstalled = () => {
+  console.log('✅ PWA was installed')
+  isInstalled.value = true
+  showInstallButton.value = false
+  deferredPrompt.value = null
+  
+  Swal.fire({
+    title: 'Berhasil!',
+    text: 'Aplikasi berhasil diinstall',
+    icon: 'success',
+    timer: 3000,
+    showConfirmButton: false
+  })
+}
+
+const installPWA = async () => {
+  if (!deferredPrompt.value) {
+    console.log('❌ No install prompt available')
+    
+    Swal.fire({
+      title: 'Info',
+      text: 'Tombol install sudah tidak tersedia. Coba refresh halaman.',
+      icon: 'info',
+      confirmButtonText: 'OK'
+    })
+    return
+  }
+
+  try {
+    console.log('🚀 Showing install prompt...')
+    
+    // Show the install prompt
+    deferredPrompt.value.prompt()
+    
+    // Wait for the user to respond to the prompt
+    const { outcome } = await deferredPrompt.value.userChoice
+    
+    console.log(`User response to install prompt: ${outcome}`)
+    
+    if (outcome === 'accepted') {
+      console.log('✅ User accepted the install')
+      Swal.fire({
+        title: 'Menginstall...',
+        text: 'Aplikasi sedang diinstall',
+        icon: 'info',
+        timer: 2000,
+        showConfirmButton: false
+      })
+    } else {
+      console.log('❌ User dismissed the install')
+      Swal.fire({
+        title: 'Dibatalkan',
+        text: 'Installasi aplikasi dibatalkan',
+        icon: 'info',
+        timer: 2000,
+        showConfirmButton: false
+      })
+    }
+    
+    // We've used the prompt, and can't use it again, so clear it
+    deferredPrompt.value = null
+    showInstallButton.value = false
+    
+  } catch (error) {
+    console.error('❌ Error during PWA installation:', error)
+    
+    Swal.fire({
+      title: 'Error!',
+      text: 'Terjadi kesalahan saat menginstall aplikasi',
+      icon: 'error',
+      confirmButtonText: 'OK'
+    })
+  }
+}
+
+// Check if app is already installed
+const checkIfPWAInstalled = () => {
+  // Check if the app is running in standalone mode
+  if (window.matchMedia('(display-mode: standalone)').matches) {
+    console.log('✅ App is running in standalone mode')
+    isInstalled.value = true
+    showInstallButton.value = false
+    return true
+  }
+  
+  // Check for other indicators of PWA installation
+  if (window.navigator.standalone === true) {
+    console.log('✅ App is installed (iOS)')
+    isInstalled.value = true
+    showInstallButton.value = false
+    return true
+  }
+  
+  return false
+}
+
+onMounted(() => {
+  console.log('=== ALL PAGE PROPS ===', page.props)
+  console.log('=== AUTH DATA ===', page.props.auth)
+  console.log('=== USER DATA ===', page.props.auth?.user)
+
+  // ✅ Initialize PWA Installation
+  checkIfPWAInstalled()
+  
+  // Listen for beforeinstallprompt event
+  window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+  
+  // Listen for app installed event
+  window.addEventListener('appinstalled', handleAppInstalled)
+  
+  console.log('📱 PWA installation listeners activated')
+})
+
+onUnmounted(() => {
+  // Clean up event listeners
+  window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+  window.removeEventListener('appinstalled', handleAppInstalled)
+})
 
 const confirmLogout = () => {
   Swal.fire({
@@ -329,5 +461,22 @@ const confirmLogout = () => {
 }
 .badge {
   font-size: 0.7em;
+}
+
+/* ✅ Style untuk tombol install PWA */
+.btn-success {
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  border: none;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.btn-success:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+}
+
+.btn-success:active {
+  transform: translateY(0);
 }
 </style>
