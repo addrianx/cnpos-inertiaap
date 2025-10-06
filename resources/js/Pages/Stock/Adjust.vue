@@ -37,9 +37,11 @@
         <label class="form-label">Catatan</label>
         <textarea
           v-model="form.note"
-          class="form-control"
+          @input="handleNoteInput"
+          class="form-control text-uppercase"
           rows="3"
-          placeholder="Alasan penyesuaian (opsional)"
+          placeholder="ALASAN PENYESUAIAN (OPSIONAL)"
+          style="text-transform: uppercase;"
         ></textarea>
       </div>
 
@@ -53,6 +55,7 @@
 import { useForm, Link } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Swal from 'sweetalert2'
+import { nextTick } from 'vue' // ✅ Import nextTick
 
 const props = defineProps({
   products: Array,
@@ -60,11 +63,25 @@ const props = defineProps({
 
 const form = useForm({
   product_id: '',
-  type: 'adjustment', // default sesuai model
+  type: 'adjustment',
   quantity: '',
   reference: '',
   note: '',
 })
+
+// Handler untuk input catatan - konversi ke uppercase
+const handleNoteInput = (event) => {
+  const start = event.target.selectionStart
+  const end = event.target.selectionEnd
+  
+  // Konversi ke uppercase
+  form.note = event.target.value.toUpperCase()
+  
+  // Restore cursor position setelah update
+  nextTick(() => {
+    event.target.setSelectionRange(start, end)
+  })
+}
 
 const submit = () => {
   form.post('/stock/adjust', {
@@ -75,7 +92,6 @@ const submit = () => {
         icon: 'success',
         confirmButtonText: 'OK'
       }).then(() => {
-        // opsional redirect ke halaman daftar stok
         window.location.href = '/stock'
       })
     }
@@ -83,3 +99,13 @@ const submit = () => {
 }
 </script>
 
+<style scoped>
+.text-uppercase {
+  text-transform: uppercase;
+}
+
+.text-uppercase::placeholder {
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+</style>

@@ -636,4 +636,81 @@
             gap: 1px;
         }
     }
+
+    /* ✅ PERBAIKAN: Pagination responsive dengan tombol lebih besar */
+.pagination {
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.page-item .page-link {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.9rem;
+    min-width: 44px; /* Minimum touch target size */
+    text-align: center;
+    border-radius: 6px;
+}
+
+/* Style khusus untuk mobile */
+@media (max-width: 768px) {
+    .pagination {
+        gap: 3px;
+    }
+    
+    .page-item .page-link {
+        padding: 0.6rem 0.8rem; /* Lebih besar di mobile */
+        font-size: 0.95rem;
+        min-width: 46px;
+        font-weight: 500;
+    }
+    
+    /* Tombol previous/next lebih lebar */
+    .page-item:first-child .page-link,
+    .page-item:last-child .page-link {
+        min-width: 60px;
+        padding: 0.6rem 0.9rem;
+    }
+    
+    /* Active page lebih menonjol */
+    .page-item.active .page-link {
+        background-color: #0d6efd;
+        border-color: #0d6efd;
+        font-weight: bold;
+        transform: scale(1.05);
+    }
+}
+
+@media (max-width: 576px) {
+    .pagination {
+        gap: 2px;
+    }
+    
+    .page-item .page-link {
+        padding: 0.7rem 0.6rem; /* Lebih tinggi untuk mudah di-tap */
+        font-size: 0.9rem;
+        min-width: 44px;
+        margin: 1px;
+    }
+    
+    .page-item:first-child .page-link,
+    .page-item:last-child .page-link {
+        min-width: 55px;
+        padding: 0.7rem 0.8rem;
+    }
+    
+    /* Ellipsis lebih kecil */
+    .page-item.disabled .page-link {
+        padding: 0.7rem 0.4rem;
+        min-width: 30px;
+    }
+}
+
+/* Hover effects untuk desktop */
+@media (hover: hover) {
+    .page-item:not(.disabled):not(.active) .page-link:hover {
+        background-color: #e9ecef;
+        transform: translateY(-1px);
+        transition: all 0.2s ease;
+    }
+}
 </style>

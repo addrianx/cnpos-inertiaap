@@ -130,7 +130,13 @@ Route::get('/', function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    
+    // ✅ PRODUCT ROUTES - TAMBAHKAN ROUTE CHECK-SIMILAR DI SINI
     Route::resource('products', ProductController::class);
+    Route::post('/products/check-similar', [ProductController::class, 'checkSimilarProducts'])->name('products.check-similar');
+    Route::get('/products/generate-sku', [ProductController::class, 'generateSku'])->name('products.generate-sku');
+    Route::get('/products/debug', [ProductController::class, 'debugProducts'])->name('products.debug');
+    
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     
     // SALES ROUTE
@@ -259,6 +265,3 @@ Route::middleware('auth')->group(function () {
 });
 
 require __DIR__.'/auth.php';
-
-
-// routes/web.php
