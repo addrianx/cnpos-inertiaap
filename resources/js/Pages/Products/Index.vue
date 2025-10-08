@@ -22,6 +22,24 @@
                 >
                     Atur Kategori
                 </button>
+
+                <!-- Tombol Tambah hanya untuk Admin & Manager -->
+                <Link 
+                    v-if="canManageProducts" 
+                    href="/stock/adjust" 
+                    class="btn btn-primary me-2 mb-2 mb-md-0"
+                >
+                   Stok
+                </Link>
+            </div>
+
+            <div class="mt-2 mt-md-0">
+                <!-- Alert Warning dari Backend -->
+                <div v-if="$page.props.flash.warning" class="alert alert-warning alert-dismissible fade show" role="alert">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                {{ $page.props.flash.warning }}
+                <button type="button" class="btn-close" @click="$page.props.flash.warning = null"></button>
+                </div>
             </div>
         </div>
 

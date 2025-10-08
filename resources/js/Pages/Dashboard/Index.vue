@@ -2,8 +2,8 @@
   <AppLayout>
     <!-- Header -->
     <div class="dashboard-header mb-6">
-      <h1 class="text-2xl font-semibold text-gray-900">Dashboard</h1>
-      <p class="text-gray-600 mt-1">Ringkasan performa toko Anda</p>
+      <h1 class="text-2xl font-semibold text-gray-900">DASHBOARD</h1>
+      <p class="text-gray-600 mt-1">Ringkasan performa toko</p>
     </div>
 
     <!-- Stats Cards -->
@@ -16,9 +16,9 @@
           </svg>
         </div>
         <div class="stats-content">
-          <h3 class="stats-title">Total Produk</h3>
+          <h3 class="stats-title">TOTAL PRODUK</h3>
           <p class="stats-value">{{ stats.products }}</p>
-          <p class="stats-description">Produk aktif di sistem</p>
+          <p class="stats-description">Barang terdaftar di gudang</p>
         </div>
         <div class="stats-arrow">
           <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -35,9 +35,9 @@
           </svg>
         </div>
         <div class="stats-content">
-          <h3 class="stats-title">Total Stok</h3>
+          <h3 class="stats-title">TOTAL STOK</h3>
           <p class="stats-value">{{ stats.stock }}</p>
-          <p class="stats-description">Unit tersedia di gudang</p>
+          <p class="stats-description">Stok Ready di gudang</p>
         </div>
         <div class="stats-arrow">
           <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -56,7 +56,7 @@
         <div class="stats-content">
           <h3 class="stats-title">Penjualan Hari Ini</h3>
           <p class="stats-value">Rp {{ formatNumber(stats.sales_today) }}</p>
-          <p class="stats-description">Total pendapatan hari ini</p>
+          <p class="stats-description">JUMLAH TRANSAKSI HARI INI</p>
         </div>
         <div class="stats-arrow">
           <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -68,24 +68,6 @@
 
     <!-- Additional Stats Row (optional) -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6 mt-6">
-      <!-- Total Kategori -->
-      <div class="stats-card" @click="goToProducts">
-        <div class="stats-icon bg-gray-50">
-          <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
-          </svg>
-        </div>
-        <div class="stats-content">
-          <h3 class="stats-title">Total Kategori</h3>
-          <p class="stats-value">{{ stats.categories || '0' }}</p>
-          <p class="stats-description">Kategori produk aktif</p>
-        </div>
-        <div class="stats-arrow">
-          <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-          </svg>
-        </div>
-      </div>
 
       <!-- Pelanggan -->
       <div class="stats-card" @click="goToCustomers">
@@ -95,9 +77,9 @@
           </svg>
         </div>
         <div class="stats-content">
-          <h3 class="stats-title">Total Pelanggan</h3>
+          <h3 class="stats-title">TOTAL TRANSAKSI</h3>
           <p class="stats-value">{{ stats.customers || '0' }}</p>
-          <p class="stats-description">Pelanggan terdaftar</p>
+          <p class="stats-description">Transaksi</p>
         </div>
         <div class="stats-arrow">
           <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

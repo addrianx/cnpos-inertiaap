@@ -5,7 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\Store;
 use App\Models\Product;
 use App\Models\Category;
+use App\Models\Stock;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class ProductController extends Controller
@@ -35,29 +38,18 @@ class ProductController extends Controller
         ]);
     }
 
-
     // 📌 Form tambah produk
     public function create()
     {
-        $store = auth()->user()->stores()->with(['users.roles'])->first();
-
-        if (!$store) {
-            return redirect()->route('stores.create')
-                ->with('error', 'Anda belum memiliki toko, buat toko terlebih dahulu sebelum mengelola produk.');
-        }
-
-        $storeId = $store->id;
-
-        // Ambil semua kategori
-        $categories = Category::all();
-
-        // Generate SKU otomatis
-        $storeName = $store->name;
-        $sku = $this->generateSku($storeName);
+        $categories = Category::orderBy('name')->get();
+        $store = auth()->user()->stores()->first();
+        
+        // Generate SKU otomatis dengan kode toko
+        $autoSku = $this->generateAutoSku($store);
 
         return Inertia::render('Products/Create', [
             'categories' => $categories,
-            'autoSku' => $sku,
+            'autoSku' => $autoSku,
         ]);
     }
 
@@ -65,79 +57,151 @@ class ProductController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'sku'         => 'required|unique:products',
-            'name'        => 'required',
-            'cost'        => 'required|numeric',
-            'price'       => 'required|numeric',
-            'discount'    => 'nullable|numeric|min:0|max:100',
+            'sku' => 'required|unique:products,sku',
+            'name' => 'required|string|max:255',
+            'initial_stock' => 'required|integer|min:0',
+            'cost' => 'required|numeric|min:0',
+            'price' => 'required|numeric|min:0',
+            'discount' => 'nullable|numeric|min:0|max:100',
             'category_id' => 'required|exists:categories,id',
         ]);
 
-        $store = auth()->user()->stores()->with(['users.roles'])->first();
+        try {
+            DB::beginTransaction();
 
-        if (!$store) {
-            return redirect()->route('products.index')
-                ->with('error', 'Anda belum memiliki toko, buat toko terlebih dahulu sebelum menambahkan produk.');
-        }
-
-        $productName = strtoupper(trim($request->name));
-
-        // DEBUG
-        \Log::info('Store: Checking for existing products with name: ' . $productName);
-
-        // Extract kata kunci penting
-        $searchWords = $this->extractImportantWords($productName);
-        \Log::info('Store: Search words extracted: ' . implode(', ', $searchWords));
-
-        // CEK KETAT: Cari produk dengan nama yang mirip berdasarkan kata kunci
-        $existingProducts = Product::where('store_id', $store->id)
-            ->where(function($query) use ($productName, $searchWords) {
-                // 1. Exact match - sama persis
-                $query->orWhere('name', 'LIKE', $productName);
-                
-                // 2. Contains match
-                $query->orWhere('name', 'LIKE', '%' . $productName . '%');
-                
-                // 3. DB mengandung nama input
-                $query->orWhereRaw('? LIKE CONCAT("%", name, "%")', [$productName]);
-                
-                // 4. MATCH BY INDIVIDUAL WORDS - PERBAIKAN UTAMA
-                foreach ($searchWords as $word) {
-                    if (strlen($word) > 2) {
-                        $query->orWhere('name', 'LIKE', '%' . $word . '%');
-                    }
-                }
-            })
-            ->select('id', 'name', 'sku')
-            ->get();
-
-        // DEBUG
-        \Log::info('Store: Found ' . $existingProducts->count() . ' existing products');
-
-        if ($existingProducts->count() > 0) {
-            $errorMessage = 'Produk dengan nama serupa sudah ada: ';
-            $productList = $existingProducts->map(function($product) {
-                return $product->name . ' (SKU: ' . $product->sku . ')';
-            })->implode(', ');
+            $store = auth()->user()->stores()->first();
             
-            return back()->withErrors([
-                'name' => $errorMessage . $productList
+            if (!$store) {
+                return back()->with('error', 'Anda belum memiliki toko.');
+            }
+
+            // Cek apakah produk dengan nama yang sama sudah ada
+            $existingProduct = Product::where('name', $request->name)
+                ->where('store_id', $store->id)
+                ->first();
+
+            if ($existingProduct) {
+                return back()->with('error', 'Produk dengan nama yang sama sudah ada di toko ini.');
+            }
+
+            // Buat produk baru
+            $product = Product::create([
+                'sku' => $request->sku,
+                'name' => $request->name,
+                'cost' => $request->cost,
+                'price' => $request->price,
+                'discount' => $request->discount ?? 0,
+                'category_id' => $request->category_id,
+                'store_id' => $store->id,
+                'created_by' => auth()->id(),
             ]);
+
+            // ✅ BUAT STOK AWAL JIKA DIISI
+            if ($request->initial_stock > 0) {
+                Stock::create([
+                    'product_id' => $product->id,
+                    'type' => 'adjustment',
+                    'quantity' => $request->initial_stock,
+                    'user_id' => auth()->id(),
+                    'reference' => 'product_creation',
+                    'note' => 'Stok awal',
+                ]);
+            }
+
+            DB::commit();
+
+            // Generate SKU baru untuk form berikutnya
+            $newSku = $this->generateAutoSku($store);
+
+            return redirect()->route('products.create')
+                ->with('success', 'Produk berhasil ditambahkan!')
+                ->with('newSku', $newSku);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Generate kode SKU otomatis berdasarkan nama toko
+     */
+    private function generateAutoSku($store)
+    {
+        if (!$store) {
+            return 'SKUDEF001'; // Default jika tidak ada toko
         }
 
-        // ✅ Simpan produk
-        Product::create([
-            'sku'         => $request->sku,
-            'name'        => $request->name,
-            'cost'        => $request->cost,
-            'price'       => $request->price,
-            'discount'    => $request->discount ?? 0,
-            'store_id'    => $store->id,
-            'category_id' => $request->category_id,
-            'created_by'  => auth()->id(),
-        ]);
+        // Ambil kode toko dari nama toko
+        $storeCode = $this->generateStoreCode($store->name);
+        
+        // Cari produk terakhir dengan kode toko yang sama
+        $lastProduct = Product::where('sku', 'like', "SKU{$storeCode}%")
+            ->orderBy('id', 'desc')
+            ->first();
+            
+        // Generate nomor urut berikutnya
+        if ($lastProduct) {
+            // Extract number from existing SKU (format: SKUCNG001 -> 001)
+            $lastNumber = (int) Str::substr($lastProduct->sku, 6); // 6 = length of "SKUCNG"
+            $nextNumber = $lastNumber + 1;
+        } else {
+            $nextNumber = 1;
+        }
+        
+        // Format: SKU + Kode Toko + Nomor Urut (3 digit)
+        return "SKU{$storeCode}" . Str::padLeft($nextNumber, 3, '0');
+    }
 
-        return redirect()->route('products.index')->with('success', 'Produk berhasil ditambahkan');
+    /**
+     * Generate kode toko dari nama toko
+     * Contoh: 
+     * - "cipta nugraha garut" -> "CNG"
+     * - "cipta nugraha cikajang" -> "CNC"
+     * - "toko abadi" -> "TOA"
+     * - "supermarket" -> "SUP"
+     */
+    private function generateStoreCode($storeName)
+    {
+        // Bersihkan nama toko
+        $cleanName = Str::lower(trim($storeName));
+        
+        // Hapus kata yang tidak penting (opsional)
+        $unimportantWords = ['toko', 'store', 'shop', 'pt', 'cv', 'ud'];
+        $words = array_filter(explode(' ', $cleanName), function($word) use ($unimportantWords) {
+            return !in_array($word, $unimportantWords) && !empty($word);
+        });
+        
+        $words = array_values($words); // Reset array keys
+        
+        $wordCount = count($words);
+        
+        if ($wordCount === 0) {
+            return 'DEF'; // Default
+        }
+        
+        if ($wordCount === 1) {
+            // Satu kata: ambil 3 huruf pertama
+            return Str::upper(Str::substr($words[0], 0, 3));
+        }
+        
+        if ($wordCount === 2) {
+            // Dua kata: 2 huruf dari kata pertama + 1 huruf dari kata kedua
+            return Str::upper(
+                Str::substr($words[0], 0, 2) . 
+                Str::substr($words[1], 0, 1)
+            );
+        }
+        
+        // Tiga kata atau lebih: ambil inisial masing-masing kata (maks 3)
+        $initials = '';
+        foreach ($words as $word) {
+            if (strlen($initials) < 3) {
+                $initials .= $word[0];
+            }
+        }
+        
+        return Str::upper($initials);
     }
 
     // 📌 Method untuk cek produk serupa
@@ -249,37 +313,6 @@ class ProductController extends Controller
         return array_values($importantWords);
     }
 
-    // 📌 Fungsi untuk generate SKU otomatis
-    private function generateSku($storeName)
-    {
-        // Ambil inisial dari nama toko
-        $words = explode(' ', $storeName);
-        $initials = '';
-        
-        foreach ($words as $word) {
-            if (!empty(trim($word))) {
-                $initials .= strtoupper(substr($word, 0, 1));
-            }
-        }
-        
-        // Cari produk terakhir dengan prefix yang sama
-        $lastProduct = Product::where('sku', 'like', "SKU{$initials}%")
-            ->orderBy('sku', 'desc')
-            ->first();
-        
-        if ($lastProduct) {
-            // Extract number dari SKU terakhir dan increment
-            $lastNumber = intval(substr($lastProduct->sku, strlen("SKU{$initials}")));
-            $nextNumber = $lastNumber + 1;
-        } else {
-            $nextNumber = 1;
-        }
-        
-        // Format: SKUCNG0001, SKUCNC0001, dll
-        return "SKU{$initials}" . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
-    }
-
-
     // 📌 Fungsi untuk membersihkan nama produk dari kata umum
     private function cleanProductName($productName)
     {
@@ -321,14 +354,13 @@ class ProductController extends Controller
     // 📌 Update produk
     public function update(Request $request, Product $product)
     {
-
         $request->validate([
             'sku'         => 'required|unique:products,sku,' . $product->id,
             'name'        => 'required',
             'cost'        => 'required|numeric',
             'price'       => 'required|numeric',
             'discount'    => 'nullable|numeric|min:0|max:100',
-            'category_id' => 'required|exists:categories,id', // tambahkan validasi kategori
+            'category_id' => 'required|exists:categories,id',
         ]);
 
         $store = auth()->user()->stores()->with(['users.roles'])->first();
@@ -345,14 +377,12 @@ class ProductController extends Controller
             'price'       => $request->price,
             'discount'    => $request->discount ?? 0,
             'store_id'    => $store->id,
-            'category_id' => $request->category_id, // update kategori
+            'category_id' => $request->category_id,
             'updated_by'  => auth()->id(),
         ]);
 
         return redirect()->route('products.index')->with('success', 'Produk berhasil diperbarui');
-        
     }
-
 
     // 📌 Hapus produk
     public function destroy(Product $product)
@@ -370,7 +400,6 @@ class ProductController extends Controller
         return redirect()->route('products.index')->with('success', 'Produk berhasil dihapus');
     }
 
-
     // ProductController.php
     public function bulkDelete(Request $request)
     {
@@ -382,5 +411,4 @@ class ProductController extends Controller
         Product::whereIn('id', $ids)->delete();
         return response()->json(['message' => 'Produk berhasil dihapus']);
     }
-
 }

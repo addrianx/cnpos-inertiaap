@@ -46,13 +46,19 @@
       </div>
 
       <button type="submit" class="btn btn-success">Simpan</button>
-      <Link href="/stock" class="btn btn-secondary ms-2">Batal</Link>
+      <button 
+        type="button" 
+        class="btn btn-secondary ms-2" 
+        @click="goBack"
+        >
+        Batal
+      </button>
     </form>
   </AppLayout>
 </template>
 
 <script setup>
-import { useForm, Link } from '@inertiajs/vue3'
+import { useForm, Link, router  } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Swal from 'sweetalert2'
 import { nextTick } from 'vue' // ✅ Import nextTick
@@ -81,6 +87,15 @@ const handleNoteInput = (event) => {
   nextTick(() => {
     event.target.setSelectionRange(start, end)
   })
+}
+
+const goBack = () => {
+  if (window.history.length > 1) {
+    window.history.back()
+  } else {
+    // Fallback ke halaman default jika tidak ada history
+    router.visit('/dashboard')
+  }
 }
 
 const submit = () => {

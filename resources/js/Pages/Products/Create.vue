@@ -2,6 +2,20 @@
   <AppLayout>
     <h2>Tambah Produk</h2>
 
+    <!-- Alert Warning dari Backend -->
+    <div v-if="page.props.flash.warning" class="alert alert-warning alert-dismissible fade show" role="alert">
+      <i class="bi bi-exclamation-triangle me-2"></i>
+      {{ page.props.flash.warning }}
+      <button type="button" class="btn-close" @click="clearFlashWarning"></button>
+    </div>
+
+    <!-- Alert Success dari Backend -->
+    <div v-if="page.props.flash.success && showSuccessAlert" class="alert alert-success alert-dismissible fade show" role="alert">
+      <i class="bi bi-check-circle me-2"></i>
+      {{ page.props.flash.success }}
+      <button type="button" class="btn-close" @click="clearFlashAndResetForm"></button>
+    </div>
+
     <form @submit.prevent="submit" class="mt-3">
       <!-- Kode Produk -->
       <div class="mb-3">
@@ -33,14 +47,14 @@
       <div class="mb-3">
         <label class="form-label">Nama Produk</label>
         <input 
-          v-model="productName" 
+          v-model="form.name" 
           @input="handleProductNameInput"
           @blur="checkSimilarProducts"
           type="text" 
           class="form-control text-uppercase" 
           :class="{ 
-            'is-invalid': hasSimilarProducts || form.errors.name,
-            'is-valid': form.name && !hasSimilarProducts && !form.errors.name
+            'is-invalid': form.errors.name,
+            'is-valid': form.name && !form.errors.name
           }"
           placeholder="MASUKKAN NAMA PRODUK"
           style="text-transform: uppercase;"
@@ -74,6 +88,27 @@
         <div v-else-if="form.name && !checkingSimilar && similarProducts.length === 0" class="alert alert-success mt-2">
           <i class="bi bi-check-circle me-1"></i> Tidak ada produk serupa yang ditemukan.
         </div>
+      </div>
+
+      <!-- Stok Awal -->
+      <div class="mb-3">
+        <label class="form-label">Stok Awal</label>
+        <input 
+          v-model="form.initial_stock" 
+          type="number" 
+          min="0" 
+          step="1" 
+          class="form-control" 
+          placeholder="Masukkan stok awal"
+          :class="{ 
+            'is-invalid': form.errors.initial_stock,
+            'is-valid': form.initial_stock !== null && !form.errors.initial_stock
+          }"
+        />
+        <div class="form-text text-muted">
+          Stok awal akan otomatis dibuat sebagai adjustment stok dengan catatan "stok awal"
+        </div>
+        <div v-if="form.errors.initial_stock" class="text-danger small">{{ form.errors.initial_stock }}</div>
       </div>
 
       <!-- Harga Modal -->
@@ -141,15 +176,26 @@
           {{ form.processing ? 'Menyimpan...' : 'Simpan' }}
         </span>
       </button>
-      <Link href="/products" class="btn btn-secondary ms-2">Batal</Link>
+      
+      <!-- Tombol Reset Form -->
+      <button 
+        type="button" 
+        class="btn btn-outline-secondary ms-2" 
+        @click="resetForm"
+        :disabled="form.processing"
+      >
+        <i class="bi bi-arrow-clockwise me-1"></i> Reset Form
+      </button>
+
+      <Link href="/products" class="btn btn-secondary ms-2">Kembali</Link>
     </form>
   </AppLayout>
 </template>
 
 <script setup>
-import { useForm, Link, usePage } from '@inertiajs/vue3'
+import { useForm, Link, usePage, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, watch, nextTick } from 'vue'
 import Swal from 'sweetalert2'
 import axios from 'axios'
 
@@ -162,11 +208,14 @@ const autoSku = page.props.autoSku || ''
 // State untuk produk serupa
 const similarProducts = ref([])
 const checkingSimilar = ref(false)
+const showSuccessAlert = ref(true) // ✅ Kontrol tampilan alert success
 let debounceTimer = null
 
+// Form dengan initial values yang jelas
 const form = useForm({
   sku: autoSku,
   name: '',
+  initial_stock: 0, // ✅ TAMBAHKAN FIELD STOK AWAL
   cost: '',
   price: '',
   discount: 0,
@@ -176,7 +225,6 @@ const form = useForm({
 // Computed untuk mengurutkan kategori berdasarkan abjad
 const sortedCategories = computed(() => {
   return [...categories].sort((a, b) => {
-    // Handle null atau undefined names
     const nameA = (a.name || '').toLowerCase()
     const nameB = (b.name || '').toLowerCase()
     
@@ -196,16 +244,70 @@ const hasSimilarProducts = computed(() => {
   return similarProducts.value.length > 0 && !form.errors.name
 })
 
-// Computed untuk nama produk dengan uppercase
-const productName = computed({
-  get() {
-    return form.name
-  },
-  set(value) {
-    // Otomatis konversi ke uppercase
-    form.name = value.toUpperCase()
+// ✅ Watch untuk newSku dari backend - PERBAIKAN
+watch(() => page.props.newSku, (newSku) => {
+  if (newSku && page.props.flash.success) {
+    // Reset form dengan SKU baru
+    resetFormWithNewSku(newSku)
   }
 })
+
+// ✅ Watch untuk flash success - PERBAIKAN
+watch(() => page.props.flash.success, (success) => {
+  if (success) {
+    showSuccessAlert.value = true
+    // Reset form jika ada newSku
+    if (page.props.newSku) {
+      resetFormWithNewSku(page.props.newSku)
+    }
+  }
+})
+
+// ✅ Fungsi reset form dengan SKU baru
+const resetFormWithNewSku = (newSku) => {
+  // Reset form secara manual
+  form.name = ''
+  form.initial_stock = 0 // ✅ RESET STOK AWAL
+  form.cost = ''
+  form.price = ''
+  form.discount = 0
+  form.category_id = ''
+  form.sku = newSku
+  
+  // Reset errors
+  form.clearErrors()
+  
+  // Reset similar products
+  similarProducts.value = []
+  
+  // Reset formatted values
+  costFormatted.value = ''
+  priceFormatted.value = ''
+}
+
+// ✅ FUNGSI RESET FORM - TOMBOL RESET (LANGSUNG RESET TANPA SWEETALERT)
+const resetForm = () => {
+  // Reset form values
+  form.name = ''
+  form.initial_stock = 0 // ✅ RESET STOK AWAL
+  form.cost = ''
+  form.price = ''
+  form.discount = 0
+  form.category_id = ''
+  form.sku = autoSku // Kembalikan ke SKU awal
+  
+  // Clear errors
+  form.clearErrors()
+  
+  // Reset similar products
+  similarProducts.value = []
+  
+  // Reset formatted values
+  costFormatted.value = ''
+  priceFormatted.value = ''
+  
+  console.log('Form telah direset')
+}
 
 // Handler untuk input nama produk - menjaga cursor position
 const handleProductNameInput = (event) => {
@@ -216,9 +318,9 @@ const handleProductNameInput = (event) => {
   form.name = event.target.value.toUpperCase()
   
   // Restore cursor position setelah update
-  setTimeout(() => {
+  nextTick(() => {
     event.target.setSelectionRange(start, end)
-  }, 0)
+  })
 
   // Reset similar products ketika user mulai mengetik lagi
   if (similarProducts.value.length > 0) {
@@ -229,7 +331,7 @@ const handleProductNameInput = (event) => {
   clearTimeout(debounceTimer)
   debounceTimer = setTimeout(() => {
     checkSimilarProducts()
-  }, 800) // Delay 800ms setelah user berhenti mengetik
+  }, 800)
 }
 
 // Fungsi untuk cek produk serupa
@@ -278,49 +380,20 @@ const priceFormatted = computed({
   }
 })
 
+// ✅ PERUBAHAN: Submit langsung tanpa konfirmasi
 const submit = () => {
   // Pastikan nama produk dalam uppercase sebelum submit
   form.name = form.name.toUpperCase()
   
-  // Tampilkan konfirmasi jika ada produk serupa
-  if (hasSimilarProducts.value) {
-    Swal.fire({
-      title: 'Konfirmasi Simpan',
-      html: `
-        <p>Ada produk serupa yang sudah terdaftar:</p>
-        <ul>
-          ${similarProducts.value.map(p => `<li><strong>${p.name}</strong> (SKU: ${p.sku})</li>`).join('')}
-        </ul>
-        <p>Apakah Anda yakin ingin menyimpan produk ini?</p>
-      `,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#ffc107',
-      cancelButtonColor: '#6c757d',
-      confirmButtonText: 'Ya, Simpan',
-      cancelButtonText: 'Batal',
-    }).then((result) => {
-      if (result.isConfirmed) {
-        submitForm()
-      }
-    })
-  } else {
-    submitForm()
-  }
+  // Submit langsung tanpa konfirmasi
+  submitForm()
 }
 
 // Fungsi untuk submit form
 const submitForm = () => {
   form.post('/products', {
     onSuccess: () => {
-      if (page.props.flash.success) {
-        Swal.fire({
-          title: 'Berhasil!',
-          text: page.props.flash.success,
-          icon: 'success',
-          confirmButtonText: 'OK'
-        })
-      }
+      // Success akan ditangani oleh alert dari backend
     },
     onError: () => {
       if (page.props.flash.error) {
@@ -342,6 +415,20 @@ const submitForm = () => {
   })
 }
 
+// ✅ FUNGSI BARU: Reset form dan clear flash - PERBAIKAN
+const clearFlashAndResetForm = () => {
+  router.visit('/products/create', {
+    only: [],
+    replace: true,
+    preserveScroll: false
+  })
+}
+
+// Fungsi untuk clear flash warning saja
+const clearFlashWarning = () => {
+  router.reload({ only: ['flash'] })
+}
+
 // Auto set SKU saat component mounted
 onMounted(() => {
   if (autoSku && !form.sku) {
@@ -357,79 +444,3 @@ onUnmounted(() => {
   }
 })
 </script>
-
-<style scoped>
-.input-group .btn {
-  border-left: 0;
-}
-
-.input-group .form-control:read-only {
-  background-color: #f8f9fa;
-}
-
-.input-group .btn:disabled {
-  background-color: #e9ecef;
-  border-color: #dee2e6;
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.is-valid {
-  border-color: #198754;
-}
-
-.is-invalid {
-  border-color: #ffc107;
-}
-
-.form-text {
-  font-size: 0.875rem;
-}
-
-/* Styling untuk input uppercase */
-.text-uppercase {
-  text-transform: uppercase;
-  font-family: inherit;
-}
-
-.text-uppercase::placeholder {
-  text-transform: uppercase;
-  opacity: 0.7;
-}
-
-/* Styling untuk alert */
-.alert-warning {
-  font-size: 0.875rem;
-  padding: 0.75rem;
-}
-
-.alert-warning ul {
-  padding-left: 1.5rem;
-}
-
-.alert-warning li {
-  margin-bottom: 0.25rem;
-}
-
-.alert-success {
-  font-size: 0.875rem;
-  padding: 0.75rem;
-}
-
-.alert-danger {
-  font-size: 0.875rem;
-  padding: 0.75rem;
-}
-
-.btn-warning {
-  background-color: #ffc107;
-  border-color: #ffc107;
-  color: #212529;
-}
-
-.btn-warning:hover {
-  background-color: #e0a800;
-  border-color: #d39e00;
-  color: #212529;
-}
-</style>
