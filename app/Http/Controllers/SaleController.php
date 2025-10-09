@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Support\Facades\DB;
 use App\Models\Product;
 use App\Models\Sale;
+use App\Models\SaleItem;
 use App\Models\Store;
 use App\Models\Stock;
 use Illuminate\Http\Request;
@@ -68,100 +69,114 @@ class SaleController extends Controller
     }
 
     public function store(Request $request)
+
     {
+        \Log::info('Sale Store Request:', $request->all());
+
         $request->validate([
+            'sale_date' => 'required|date',
             'items' => 'required|array|min:1',
-            'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',
-            'items.*.discount' => 'nullable|numeric',
-            'discount' => 'nullable|numeric',
-            'paid' => 'required|numeric',
+            'items.*.price' => 'required|numeric|min:0',
+            'items.*.discount' => 'nullable|numeric|min:0|max:100',
+            'items.*.subtotal' => 'required|numeric|min:0',
+            'items.*.item_type' => 'required|in:product,service',
+            'items.*.product_id' => 'nullable|required_if:items.*.item_type,product|exists:products,id',
+            'items.*.service_name' => 'nullable|required_if:items.*.item_type,service|string|max:255',
+            'items.*.service_description' => 'nullable|string',
+            'subtotal' => 'required|numeric|min:0',
+            'discount' => 'required|numeric|min:0',
+            'total' => 'required|numeric|min:0',
+            'paid' => 'required|numeric|min:0',
+            'change' => 'required|numeric',
         ]);
 
-        // ✅ FIX: Gunakan many-to-many
-        $store = Store::whereHas('users', function($q) {
-            $q->where('users.id', auth()->id());
-        })->firstOrFail();
+        // Validasi pembayaran
+        if ($request->paid < $request->total) {
+            return response()->json([
+                'message' => 'Jumlah pembayaran kurang dari total transaksi.',
+                'errors' => ['paid' => 'Jumlah pembayaran harus lebih besar atau sama dengan total transaksi.']
+            ], 422);
+        }
 
         DB::beginTransaction();
         try {
-            $subtotal = 0;
+            // Dapatkan store_id dari user
+            $store = Store::whereHas('users', function($q) {
+                $q->where('users.id', auth()->id());
+            })->first();
 
-            foreach ($request->items as $item) {
-                $product = Product::where('id', $item['product_id'])
-                    ->where('store_id', $store->id)
-                    ->firstOrFail();
-
-                $stokTersedia = $product->stock;
-                if ($stokTersedia < $item['quantity']) {
-                    return back()->withErrors([
-                        'items.'.$loop->index.'.quantity' => "Stok {$product->name} tidak cukup. Sisa stok: {$stokTersedia}"
-                    ])->withInput();
-                }
-
-                $price = $product->price;
-                $lineSubtotal = ($price * $item['quantity']) - ($item['discount'] ?? 0);
-                $subtotal += $lineSubtotal;
+            if (!$store) {
+                throw new \Exception('Toko tidak ditemukan.');
             }
 
-            $discount = $request->discount ?? 0;
-            $total = max($subtotal - $discount, 0);
-
-            $request->validate([
-                'paid' => 'gte:'.$total
-            ], [
-                'paid.gte' => 'Jumlah bayar tidak mencukupi, minimal Rp '.number_format($total,0,',','.')
-            ]);
-
+            // Buat transaksi penjualan
             $sale = Sale::create([
+                'sale_date' => $request->sale_date,
+                'subtotal' => $request->subtotal,
+                'discount' => $request->discount,
+                'total' => $request->total,
+                'paid' => $request->paid,
+                'change' => $request->change,
                 'user_id' => auth()->id(),
                 'store_id' => $store->id,
-                'subtotal' => $subtotal,
-                'discount' => $discount,
-                'total' => $total,
-                'paid' => $request->paid,
-                'change' => max($request->paid - $total, 0),
             ]);
 
+            // Proses setiap item
             foreach ($request->items as $item) {
-                $product = Product::where('id', $item['product_id'])
-                    ->where('store_id', $store->id)
-                    ->firstOrFail();
-
-                $price = $product->price;
-                $lineSubtotal = ($price * $item['quantity']) - ($item['discount'] ?? 0);
-
-                $sale->items()->create([
-                    'product_id' => $product->id,
+                $saleItemData = [
+                    'sale_id' => $sale->id,
                     'quantity' => $item['quantity'],
-                    'price' => $price,
+                    'price' => $item['price'],
                     'discount' => $item['discount'] ?? 0,
-                    'subtotal' => $lineSubtotal,
-                ]);
+                    'subtotal' => $item['subtotal'],
+                    'item_type' => $item['item_type'],
+                ];
 
-                // ✅ FIX: Tambahkan user_id
-                Stock::create([
-                    'product_id' => $product->id,
-                    'user_id'    => auth()->id(),
-                    'type' => 'out',
-                    'quantity' => $item['quantity'],
-                    'reference' => $sale->sale_code,
-                    'note' => 'Penjualan ' . $sale->sale_code,
-                ]);
+                if ($item['item_type'] === 'product') {
+                    $saleItemData['product_id'] = $item['product_id'];
+                    $saleItemData['service_name'] = null;
+                    $saleItemData['service_description'] = null;
+                    
+                    // Update stok produk
+                    $product = Product::find($item['product_id']);
+                    if ($product) {
+                        Stock::create([
+                            'product_id' => $product->id,
+                            'type' => 'out',
+                            'quantity' => $item['quantity'],
+                            'user_id' => auth()->id(),
+                            'reference' => 'sale_' . $sale->id,
+                            'note' => 'Penjualan #' . $sale->id,
+                        ]);
+                    }
+                } else {
+                    $saleItemData['product_id'] = null;
+                    $saleItemData['service_name'] = $item['service_name'];
+                    $saleItemData['service_description'] = $item['service_description'] ?? null;
+                }
+
+                SaleItem::create($saleItemData);
             }
 
             DB::commit();
 
-            return redirect()
-                ->route('sales.index')
-                ->with('success', 'Transaksi ' . $sale->sale_code . ' berhasil disimpan');
+            return response()->json([
+                'message' => 'Transaksi berhasil disimpan!',
+                'sale_id' => $sale->id
+            ], 201);
+
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->withErrors([
-                'msg' => $e->getMessage()
-            ])->withInput();
+            
+            \Log::error('Sale Store Error: ' . $e->getMessage());
+
+            return response()->json([
+                'message' => 'Terjadi kesalahan: ' . $e->getMessage(),
+            ], 500);
         }
     }
+
 
     public function returnSale(Request $request, Sale $sale)
     {

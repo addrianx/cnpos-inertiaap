@@ -5,7 +5,22 @@
       <Link href="/sales/create" class="btn btn-primary">+ Transaksi Baru</Link>
     </div>
 
-    <div class="table-responsive">
+    <!-- Loading State -->
+    <div v-if="loading" class="text-center py-5">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+      <p class="mt-2 text-muted">Memuat data penjualan...</p>
+    </div>
+
+    <!-- Error State -->
+    <div v-else-if="error" class="alert alert-danger">
+      <i class="bi bi-exclamation-triangle me-2"></i>
+      {{ error }}
+    </div>
+
+    <!-- Data Table -->
+    <div v-else class="table-responsive">
       <table class="table table-bordered table-striped table-nowrap">
         <thead class="table-dark">
           <tr>
@@ -21,8 +36,9 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-if="sales.length === 0">
+          <tr v-if="salesData.length === 0">
             <td colspan="9" class="text-center text-muted py-4">
+              <i class="bi bi-cart-x display-6 d-block mb-2"></i>
               Belum ada penjualan.
             </td>
           </tr>
@@ -31,29 +47,29 @@
             <td class="text-nowrap">{{ (currentPage - 1) * perPage + index + 1 }}</td>
             <td class="text-nowrap">
               <strong>{{ sale.sale_code }}</strong>
-              <div v-if="sale.is_returned" class="badge bg-danger mt-1">DI RETUR</div>
+              <div v-if="sale.is_returned" class="badge badge-retur mt-1">DI RETUR</div>
             </td>
             <td class="text-nowrap">{{ formatDate(sale.created_at) }}</td>
             <td class="text-nowrap">Rp {{ formatNumber(sale.total) }}</td>
             <td class="text-nowrap">Rp {{ formatNumber(sale.paid) }}</td>
             <td class="text-nowrap">Rp {{ formatNumber(sale.change) }}</td>
-            <td class="text-nowrap">{{ sale.user?.name }}</td>
+            <td class="text-nowrap">{{ sale.user?.name || '-' }}</td>
             <td class="text-nowrap">
               <div v-if="sale.is_returned">
-                <span class="badge bg-danger">Sudah di-retur</span>
+                <span class="badge badge-danger">Sudah di-retur</span>
                 <small class="d-block text-muted">
                   {{ formatDate(sale.returned_at) }}
                 </small>
               </div>
               <div v-else>
-                <span v-if="sale.can_return" class="badge bg-success">
+                <span v-if="sale.can_return" class="badge badge-success">
                   Bisa di-retur
                 </span>
-                <span v-else class="badge bg-secondary">
+                <span v-else class="badge badge-secondary">
                   Tidak bisa di-retur
                 </span>
                 <small class="d-block text-muted">
-                  {{ sale.remaining_return_time }}
+                  {{ sale.remaining_return_time || 'Batas waktu habis' }}
                 </small>
               </div>
             </td>
@@ -83,42 +99,10 @@
       </table>
     </div>
 
-    <!-- ✅ PAGINATION: Truncated seperti di products -->
-    <nav class="mt-3">
+    <!-- PAGINATION: Hanya tampil jika ada data -->
+    <nav v-if="salesData.length > 0" class="mt-3">
       <div class="d-flex flex-column align-items-center">
-        <!-- Mobile-friendly navigation -->
-        <div class="d-flex justify-content-center w-100 mb-2 d-sm-none">
-          <button 
-            :class="['btn', 'me-2', 'px-3', 'py-2', { 
-              'btn-primary': currentPage > 1, 
-              'btn-outline-secondary': currentPage === 1 
-            }]"
-            @click="prevPage" 
-            :disabled="currentPage === 1"
-          >
-            <i class="bi bi-chevron-left me-1"></i> Prev
-          </button>
-          
-          <div class="mx-2 d-flex align-items-center">
-            <span class="badge bg-primary fs-6 px-3 py-2">
-              {{ currentPage }}/{{ totalPages }}
-            </span>
-          </div>
-          
-          <button 
-            :class="['btn', 'px-3', 'py-2', { 
-              'btn-primary': currentPage < totalPages, 
-              'btn-outline-secondary': currentPage === totalPages 
-            }]"
-            @click="nextPage" 
-            :disabled="currentPage === totalPages"
-          >
-            Next <i class="bi bi-chevron-right ms-1"></i>
-          </button>
-        </div>
-
-        <!-- Desktop pagination -->
-        <ul class="pagination justify-content-center flex-wrap d-none d-sm-flex mb-2">
+        <ul class="pagination justify-content-center flex-wrap mb-2">
           <!-- Previous Button -->
           <li :class="['page-item', { disabled: currentPage === 1 }]">
             <button class="page-link" @click="prevPage" :disabled="currentPage === 1">
@@ -169,13 +153,13 @@
 
         <!-- Info Pagination -->
         <div class="text-center text-muted small">
-          Menampilkan {{ startItem }}-{{ endItem }} dari {{ sales.length }} penjualan
+          Menampilkan {{ startItem }}-{{ endItem }} dari {{ salesData.length }} penjualan
         </div>
       </div>
     </nav>
 
     <!-- Modal Detail Penjualan -->
-    <div v-if="showDetailModal" class="modal fade show d-block" tabindex="-1">
+    <div v-if="showDetailModal" class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5)">
       <div class="modal-dialog modal-lg">
         <div class="modal-content">
           <div class="modal-header">
@@ -184,24 +168,26 @@
           </div>
           <div class="modal-body">
             <div v-if="selectedSale">
+              <!-- Informasi Header -->
               <div class="row mb-3">
                 <div class="col-md-6">
-                  <strong>Tanggal:</strong> {{ formatDate(selectedSale.created_at) }}<br>
-                  <strong>Kasir:</strong> {{ selectedSale.user?.name }}
+                  <small class="text-muted">Tanggal</small><br>
+                  <strong>{{ formatDate(selectedSale.created_at) }}</strong>
                 </div>
                 <div class="col-md-6">
-                  <strong>Subtotal:</strong> Rp {{ formatNumber(selectedSale.subtotal) }}<br>
-                  <strong>Diskon:</strong> Rp {{ formatNumber(selectedSale.discount) }}<br>
-                  <strong>Total:</strong> Rp {{ formatNumber(selectedSale.total) }}
+                  <small class="text-muted">Kasir</small><br>
+                  <strong>{{ selectedSale.user?.name || '-' }}</strong>
                 </div>
               </div>
-              
-              <h6>Items:</h6>
-              <div class="table-responsive">
+
+              <!-- Daftar Item -->
+              <h6 class="border-bottom pb-2 mb-3">Daftar Item:</h6>
+              <div class="table-responsive mb-4">
                 <table class="table table-sm table-bordered">
-                  <thead>
+                  <thead class="table-light">
                     <tr>
-                      <th class="text-nowrap">Produk</th>
+                      <th class="text-nowrap">Tipe</th>
+                      <th class="text-nowrap">Nama Item</th>
                       <th class="text-nowrap">Qty</th>
                       <th class="text-nowrap">Harga</th>
                       <th class="text-nowrap">Diskon</th>
@@ -209,17 +195,100 @@
                     </tr>
                   </thead>
                   <tbody>
-                    <tr v-for="item in selectedSale.items" :key="item.id">
-                      <td class="text-nowrap">{{ item.product?.name }}</td>
-                      <td class="text-nowrap">{{ item.quantity }}</td>
-                      <td class="text-nowrap">Rp {{ formatNumber(item.price) }}</td>
-                      <td class="text-nowrap">Rp {{ formatNumber(item.discount) }}</td>
-                      <td class="text-nowrap">Rp {{ formatNumber(item.subtotal) }}</td>
+                    <tr v-for="item in selectedSale.items || []" :key="item.id">
+                      <td class="text-nowrap">
+                        <span v-if="item.item_type === 'product'" class="badge badge-product">Produk</span>
+                        <span v-else class="badge badge-service">Jasa</span>
+                      </td>
+                      <td class="text-nowrap">
+                        <div v-if="item.item_type === 'product'">
+                          <strong>{{ item.product?.name || 'Produk tidak ditemukan' }}</strong>
+                          <small v-if="item.product?.sku" class="d-block text-muted">
+                            SKU: {{ item.product.sku }}
+                          </small>
+                        </div>
+                        <div v-else>
+                          <strong>{{ item.service_name || 'Jasa tidak ditemukan' }}</strong>
+                          <small v-if="item.service_description" class="d-block text-muted">
+                            {{ item.service_description }}
+                          </small>
+                        </div>
+                      </td>
+                      <td class="text-nowrap text-center">{{ item.quantity || 0 }}</td>
+                      <td class="text-nowrap">Rp {{ formatNumber(item.price || 0) }}</td>
+                      <td class="text-nowrap">
+                        <span v-if="item.discount > 0">{{ item.discount }}%</span>
+                        <span v-else class="text-muted">-</span>
+                      </td>
+                      <td class="text-nowrap fw-bold">Rp {{ formatNumber(item.subtotal || 0) }}</td>
                     </tr>
                   </tbody>
                 </table>
               </div>
+
+              <!-- Ringkasan Pembayaran -->
+              <div class="card border-primary">
+                <div class="card-header bg-primary text-white">
+                  <h6 class="card-title mb-0">Ringkasan Pembayaran</h6>
+                </div>
+                <div class="card-body">
+                  <div class="row">
+                    <div class="col-md-8">
+                      <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span>Subtotal:</span>
+                        <strong>Rp {{ formatNumber(selectedSale.subtotal || 0) }}</strong>
+                      </div>
+                      <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span>Diskon:</span>
+                        <strong class="text-danger">- Rp {{ formatNumber(selectedSale.discount || 0) }}</strong>
+                      </div>
+                      <div class="d-flex justify-content-between align-items-center mb-3 fs-5 fw-bold border-top pt-2">
+                        <span>Total:</span>
+                        <span class="text-primary">Rp {{ formatNumber(selectedSale.total || 0) }}</span>
+                      </div>
+                      <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span>Dibayar:</span>
+                        <strong class="text-success">Rp {{ formatNumber(selectedSale.paid || 0) }}</strong>
+                      </div>
+                      <div class="d-flex justify-content-between align-items-center mb-2 fs-5 fw-bold border-top pt-2">
+                        <span>Kembalian:</span>
+                        <span class="text-success">Rp {{ formatNumber(selectedSale.change || 0) }}</span>
+                      </div>
+                    </div>
+                    <div class="col-md-4 text-center">
+                      <div class="border rounded p-3 bg-light">
+                        <div class="mb-2">
+                          <small class="text-muted d-block">Status</small>
+                          <span 
+                            v-if="(selectedSale.paid || 0) >= (selectedSale.total || 0)" 
+                            class="badge badge-lunas"
+                          >
+                            LUNAS
+                          </span>
+                          <span v-else class="badge badge-kurang">
+                            KURANG
+                          </span>
+                        </div>
+                        <div class="border-top pt-2">
+                          <small class="text-muted d-block mb-1">Item Terjual</small>
+                          <div>
+                            <span class="badge badge-product-count me-1">
+                              {{ (selectedSale.items || []).filter(item => item.item_type === 'product').length }} Produk
+                            </span>
+                            <span class="badge badge-service-count">
+                              {{ (selectedSale.items || []).filter(item => item.item_type === 'service').length }} Jasa
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" @click="showDetailModal = false">Tutup</button>
           </div>
         </div>
       </div>
@@ -228,33 +297,50 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { Link, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Swal from 'sweetalert2'
 import axios from 'axios'
 
 const props = defineProps({
-  sales: Array
+  sales: {
+    type: Array,
+    default: () => [] // Default empty array
+  }
 })
 
-// ✅ PAGINATION: State management
+// State management
 const perPage = ref(20)
 const currentPage = ref(1)
 const showDetailModal = ref(false)
 const selectedSale = ref(null)
+const loading = ref(false)
+const error = ref(null)
 
-// ✅ PAGINATION: Computed properties
-const totalPages = computed(() => Math.ceil(props.sales.length / perPage.value) || 1)
-
-const paginatedSales = computed(() => {
-  const start = (currentPage.value - 1) * perPage.value
-  const end = start + perPage.value
-  return props.sales.slice(start, end)
+// Data dengan validasi
+const salesData = computed(() => {
+  return Array.isArray(props.sales) ? props.sales : []
 })
 
-// ✅ PAGINATION: Visible pages dengan truncation (max 5 pages)
+// PAGINATION: Computed properties dengan validasi
+const totalPages = computed(() => {
+  const total = Math.ceil(salesData.value.length / perPage.value)
+  return total > 0 ? total : 1
+})
+
+const paginatedSales = computed(() => {
+  if (salesData.value.length === 0) return []
+  
+  const start = (currentPage.value - 1) * perPage.value
+  const end = start + perPage.value
+  return salesData.value.slice(start, end)
+})
+
+// PAGINATION: Visible pages dengan truncation (max 5 pages)
 const visiblePages = computed(() => {
+  if (totalPages.value <= 1) return [1]
+  
   const pages = []
   const maxVisible = 5
   const delta = 2
@@ -277,7 +363,7 @@ const visiblePages = computed(() => {
   return pages
 })
 
-// ✅ PAGINATION: Pagination controls visibility
+// PAGINATION: Pagination controls visibility
 const showFirstPage = computed(() => {
   return visiblePages.value.length > 0 && visiblePages.value[0] > 1
 })
@@ -294,16 +380,16 @@ const showSecondEllipsis = computed(() => {
   return showLastPage.value && visiblePages.value[visiblePages.value.length - 1] < totalPages.value - 1
 })
 
-// ✅ PAGINATION: Pagination info
+// PAGINATION: Pagination info
 const startItem = computed(() => {
   return (currentPage.value - 1) * perPage.value + 1
 })
 
 const endItem = computed(() => {
-  return Math.min(currentPage.value * perPage.value, props.sales.length)
+  return Math.min(currentPage.value * perPage.value, salesData.value.length)
 })
 
-// ✅ PAGINATION: Methods
+// PAGINATION: Methods
 const goToPage = (page) => {
   if (page >= 1 && page <= totalPages.value) {
     currentPage.value = page
@@ -317,21 +403,34 @@ const nextPage = () => goToPage(currentPage.value + 1)
 // Reset to first page when component mounts or sales data changes
 onMounted(() => {
   currentPage.value = 1
+  console.log('Sales data loaded:', salesData.value)
 })
+
+// Watch for props changes
+watch(() => props.sales, (newSales) => {
+  console.log('Sales props updated:', newSales)
+  currentPage.value = 1 // Reset to first page when data changes
+}, { immediate: true })
 
 const formatDate = (dateString) => {
   if (!dateString) return '-'
-  return new Date(dateString).toLocaleDateString('id-ID', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
+  try {
+    return new Date(dateString).toLocaleDateString('id-ID', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  } catch (error) {
+    console.error('Error formatting date:', error)
+    return '-'
+  }
 }
 
 const formatNumber = (num) => {
-  return new Intl.NumberFormat('id-ID').format(num || 0)
+  const number = Number(num) || 0
+  return new Intl.NumberFormat('id-ID').format(number)
 }
 
 const showSaleDetail = (sale) => {
@@ -360,12 +459,13 @@ const confirmReturn = (sale) => {
     confirmButtonText: 'Ya, Retur!',
     cancelButtonText: 'Batal',
     preConfirm: () => {
-      const reason = document.getElementById('return-reason').value
+      const reason = document.getElementById('return-reason')?.value || ''
       return { reason }
     }
   }).then(async (result) => {
     if (result.isConfirmed) {
       try {
+        loading.value = true
         const response = await axios.post(`/sales/${sale.id}/return`, {
           reason: result.value.reason
         })
@@ -377,7 +477,10 @@ const confirmReturn = (sale) => {
           Swal.fire('Gagal!', response.data.message, 'error')
         }
       } catch (error) {
+        console.error('Return error:', error)
         Swal.fire('Error!', error.response?.data?.message || 'Terjadi kesalahan', 'error')
+      } finally {
+        loading.value = false
       }
     }
   })
@@ -400,10 +503,13 @@ const confirmReturn = (sale) => {
   -webkit-overflow-scrolling: touch;
 }
 
-/* ✅ PAGINATION: CSS untuk pagination responsive */
+/* ========================= */
+/* ✅ PAGINATION: SAMA UNTUK SEMUA SCREEN */
+/* ========================= */
 .pagination {
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 2px;
+  margin-bottom: 0.5rem;
 }
 
 .page-item .page-link {
@@ -413,27 +519,157 @@ const confirmReturn = (sale) => {
   text-align: center;
   border-radius: 6px;
   border: 1px solid #dee2e6;
+  color: #0d6efd;
+  background-color: white;
+  transition: all 0.2s ease;
 }
 
-/* Mobile styles */
+.page-item.active .page-link {
+  background-color: #0d6efd;
+  border-color: #0d6efd;
+  color: white;
+  font-weight: 600;
+}
+
+.page-item:not(.disabled):not(.active) .page-link:hover {
+  background-color: #e9ecef;
+  border-color: #dee2e6;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.page-item.disabled .page-link {
+  color: #6c757d;
+  background-color: #f8f9fa;
+  border-color: #dee2e6;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* ========================= */
+/* ✅ BADGE SIZE FIX */
+/* ========================= */
+
+/* Badge untuk tipe item di tabel */
+.badge-product,
+.badge-service {
+  font-size: 0.7rem;
+  padding: 0.25rem 0.5rem;
+  font-weight: 500;
+}
+
+.badge-product {
+  background-color: #198754 !important;
+  color: white;
+}
+
+.badge-service {
+  background-color: #0dcaf0 !important;
+  color: white;
+}
+
+/* Badge untuk status retur di tabel utama */
+.badge-retur {
+  font-size: 0.65rem;
+  padding: 0.2rem 0.4rem;
+  background-color: #dc3545 !important;
+  color: white;
+}
+
+.badge-success {
+  font-size: 0.75rem;
+  padding: 0.3rem 0.5rem;
+}
+
+.badge-danger {
+  font-size: 0.75rem;
+  padding: 0.3rem 0.5rem;
+}
+
+.badge-secondary {
+  font-size: 0.75rem;
+  padding: 0.3rem 0.5rem;
+}
+
+/* Badge di modal ringkasan */
+.badge-lunas,
+.badge-kurang {
+  font-size: 0.75rem;
+  padding: 0.3rem 0.6rem;
+  font-weight: 500;
+}
+
+.badge-lunas {
+  background-color: #198754 !important;
+  color: white;
+}
+
+.badge-kurang {
+  background-color: #ffc107 !important;
+  color: #000;
+}
+
+.badge-product-count,
+.badge-service-count {
+  font-size: 0.7rem;
+  padding: 0.25rem 0.4rem;
+  margin: 0.1rem;
+}
+
+.badge-product-count {
+  background-color: #198754 !important;
+  color: white;
+}
+
+.badge-service-count {
+  background-color: #0dcaf0 !important;
+  color: white;
+}
+
+/* ========================= */
+/* RESPONSIVE DESIGN */
+/* ========================= */
+
+/* Mobile styles - Pagination adjustment */
 @media (max-width: 767.98px) {
-  /* Hide desktop pagination on mobile */
   .pagination {
-    display: none !important;
+    gap: 1px;
   }
   
-  /* Mobile navigation buttons - BESAR untuk mobile */
-  .btn {
-    min-height: 48px;
-    font-weight: 500;
-    font-size: 1rem;
-    padding: 0.7rem 1rem !important;
+  .page-item .page-link {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.85rem;
+    min-width: 40px;
   }
   
+  /* Badge di mobile - LEBIH KECIL */
   .badge {
-    min-width: 90px;
-    font-size: 1rem !important;
-    padding: 0.7rem 1rem !important;
+    font-size: 0.65rem !important;
+    padding: 0.2rem 0.4rem !important;
+  }
+  
+  .badge-product,
+  .badge-service {
+    font-size: 0.6rem;
+    padding: 0.15rem 0.3rem;
+  }
+  
+  .badge-retur {
+    font-size: 0.55rem;
+    padding: 0.15rem 0.3rem;
+  }
+  
+  .badge-lunas,
+  .badge-kurang {
+    font-size: 0.65rem;
+    padding: 0.2rem 0.4rem;
+  }
+  
+  .badge-product-count,
+  .badge-service-count {
+    font-size: 0.6rem;
+    padding: 0.15rem 0.3rem;
+    margin: 0.05rem;
   }
   
   .table-nowrap {
@@ -442,56 +678,60 @@ const confirmReturn = (sale) => {
   }
   
   .btn-sm {
-    padding: 0.4rem 0.6rem;
+    padding: 0.3rem 0.5rem;
+    font-size: 0.75rem;
+    min-height: 32px;
+  }
+}
+
+/* Very small mobile devices */
+@media (max-width: 375px) {
+  .pagination {
+    gap: 0;
+  }
+  
+  .page-item .page-link {
+    padding: 0.35rem 0.5rem;
     font-size: 0.8rem;
-    min-height: 36px;
+    min-width: 36px;
+  }
+  
+  /* Badge di very small screen - EXTRA KECIL */
+  .badge {
+    font-size: 0.6rem !important;
+    padding: 0.15rem 0.3rem !important;
+  }
+  
+  .badge-product,
+  .badge-service {
+    font-size: 0.55rem;
+    padding: 0.1rem 0.25rem;
+  }
+  
+  .badge-retur {
+    font-size: 0.5rem;
+    padding: 0.1rem 0.25rem;
+  }
+  
+  .table-nowrap {
+    min-width: 1100px;
+    font-size: 0.85rem;
   }
 }
 
 /* Desktop enhancement */
 @media (min-width: 768px) {
-  /* Hide mobile navigation on desktop */
-  .d-sm-none {
-    display: none !important;
-  }
-  
   .page-item .page-link {
     padding: 0.6rem 0.8rem;
     font-size: 0.95rem;
     min-width: 46px;
   }
   
-  .page-item.active .page-link {
-    background-color: #0d6efd;
-    border-color: #0d6efd;
-    font-weight: bold;
-  }
-  
   /* Hover effects for desktop */
   .page-item:not(.disabled):not(.active) .page-link:hover {
     background-color: #e9ecef;
     transform: translateY(-1px);
-    transition: all 0.2s ease;
-  }
-}
-
-/* Very small mobile devices */
-@media (max-width: 375px) {
-  .btn {
-    padding: 0.6rem 0.8rem !important;
-    font-size: 0.9rem;
-    min-height: 46px;
-  }
-  
-  .badge {
-    font-size: 0.9rem !important;
-    padding: 0.6rem 0.8rem !important;
-    min-width: 80px;
-  }
-  
-  .table-nowrap {
-    min-width: 1100px;
-    font-size: 0.85rem;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
   }
 }
 
