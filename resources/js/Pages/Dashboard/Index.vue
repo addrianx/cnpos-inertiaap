@@ -54,9 +54,9 @@
           </svg>
         </div>
         <div class="stats-content">
-          <h3 class="stats-title">Penjualan Hari Ini</h3>
+          <h3 class="stats-title">PENJUALAN HARI INI</h3>
           <p class="stats-value">Rp {{ formatNumber(stats.sales_today) }}</p>
-          <p class="stats-description">JUMLAH TRANSAKSI HARI INI</p>
+          <p class="stats-description">Jumlah transaksi hari ini</p>
         </div>
         <div class="stats-arrow">
           <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

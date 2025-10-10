@@ -1,12 +1,13 @@
 <template>
   <AppLayout>
     <div class="container-fluid py-4">
+      <!-- Header -->
       <div class="row">
         <div class="col-12">
           <div class="d-flex justify-content-between align-items-center mb-4">
             <h2 class="mb-0">Kasir Penjualan</h2>
             <div class="d-flex gap-2">
-              <button type="button" class="btn btn-outline-secondary" @click="resetForm">
+              <button type="button" class="btn btn-outline-secondary" @click="handleReset">
                 <i class="bi bi-arrow-clockwise me-1"></i> Reset
               </button>
               <Link href="/sales" class="btn btn-secondary">
@@ -18,8 +19,9 @@
       </div>
 
       <div class="row">
-        <!-- Form Input Item -->
-        <div class="col-lg-8">
+        <!-- Kolom Kiri: Input Item dan Daftar Item -->
+        <div class="col-lg-8 py-sm-2 py-md-0">
+          <!-- Form Input Item -->
           <div class="card mb-4">
             <div class="card-header bg-primary text-white">
               <h5 class="card-title mb-0">Input Item</h5>
@@ -35,9 +37,8 @@
                       class="btn-check" 
                       name="itemType" 
                       id="productType" 
-                      v-model="newItem.type" 
+                      v-model="itemInput.type" 
                       value="product"
-                      checked
                     >
                     <label class="btn btn-outline-primary" for="productType">Produk</label>
                     
@@ -46,7 +47,7 @@
                       class="btn-check" 
                       name="itemType" 
                       id="serviceType" 
-                      v-model="newItem.type" 
+                      v-model="itemInput.type" 
                       value="service"
                     >
                     <label class="btn btn-outline-primary" for="serviceType">Jasa</label>
@@ -54,107 +55,118 @@
                 </div>
               </div>
 
-              <!-- Form Input Berdasarkan Tipe -->
-              <div class="row g-3">
-                <!-- Input Produk -->
-                <template v-if="newItem.type === 'product'">
-                  <div class="col-md-6">
-                    <label class="form-label">Pilih Produk</label>
-                    <select 
-                      v-model="newItem.product_id"
-                      class="form-select"
-                      @change="onProductSelect"
+              <!-- Input untuk Produk -->
+              <div v-if="itemInput.type === 'product'" class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label">Pilih Produk</label>
+                  <select 
+                    v-model="itemInput.product_id"
+                    class="form-select"
+                    @change="handleProductSelect"
+                  >
+                    <option value="">-- Pilih Produk --</option>
+                    <option 
+                      v-for="product in filteredProducts" 
+                      :key="product.id" 
+                      :value="product.id"
                     >
-                      <option value="">-- Pilih Produk --</option>
-                      <option 
-                        v-for="product in availableProducts" 
-                        :key="product.id" 
-                        :value="product.id"
-                        :disabled="product.stock <= 0"
-                      >
-                        {{ product.name }} - Rp {{ product.price.toLocaleString() }} 
-                        <span v-if="product.stock <= 0" class="text-danger">(Stok Habis)</span>
-                        <span v-else>(Stok: {{ product.stock }})</span>
-                      </option>
-                    </select>
-                  </div>
-                  
-                  <div class="col-md-3">
-                    <label class="form-label">Jumlah</label>
-                    <input
-                      v-model.number="newItem.quantity"
-                      type="number"
-                      class="form-control"
-                      min="1"
-                      :max="selectedProduct?.stock || 1"
-                      @change="validateQuantity"
-                    >
-                  </div>
-                  
-                  <div class="col-md-3">
-                    <label class="form-label">Diskon (%)</label>
-                    <input
-                      v-model.number="newItem.discount"
-                      type="number"
-                      class="form-control"
-                      min="0"
-                      max="100"
-                    >
-                  </div>
-                </template>
-
-                <!-- Input Jasa -->
-                <template v-else>
-                  <div class="col-md-4">
-                    <label class="form-label">Nama Jasa</label>
-                    <input
-                      v-model="newItem.service_name"
-                      type="text"
-                      class="form-control"
-                      placeholder="Nama jasa/layanan"
-                    >
-                  </div>
-                  
-                  <div class="col-md-3">
-                    <label class="form-label">Harga</label>
-                    <input
-                      v-model.number="newItem.service_price"
-                      type="number"
-                      class="form-control"
-                      min="0"
-                      placeholder="Harga jasa"
-                    >
-                  </div>
-                  
-                  <div class="col-md-3">
-                    <label class="form-label">Jumlah</label>
-                    <input
-                      v-model.number="newItem.quantity"
-                      type="number"
-                      class="form-control"
-                      min="1"
-                    >
-                  </div>
-                  
-                  <div class="col-md-2">
-                    <label class="form-label">Diskon (%)</label>
-                    <input
-                      v-model.number="newItem.discount"
-                      type="number"
-                      class="form-control"
-                      min="0"
-                      max="100"
-                    >
-                  </div>
-                </template>
+                      {{ product.name }} - Rp {{ formatPrice(product.price) }} 
+                      (Stok: {{ product.stock }})
+                    </option>
+                  </select>
+                </div>
+                
+                <div class="col-md-3">
+                  <label class="form-label">Jumlah</label>
+                  <input
+                    v-model.number="itemInput.quantity"
+                    type="number"
+                    class="form-control"
+                    min="1"
+                    :max="getMaxQuantity"
+                    @blur="validateQuantity"
+                  >
+                  <small class="text-muted" v-if="selectedProductData">
+                    Maks: {{ getMaxQuantity }}
+                  </small>
+                </div>
+                
+                <div class="col-md-3">
+                  <label class="form-label">Diskon (%)</label>
+                  <input
+                    v-model.number="itemInput.discount"
+                    type="number"
+                    class="form-control"
+                    min="0"
+                    max="100"
+                  >
+                </div>
               </div>
 
-              <!-- Tombol Tambah Item -->
+              <!-- Input untuk Jasa -->
+              <div v-else class="row g-3">
+                <div class="col-md-4">
+                  <label class="form-label">Nama Jasa</label>
+                  <input
+                    v-model="itemInput.service_name"
+                    type="text"
+                    class="form-control"
+                    placeholder="Nama jasa/layanan"
+                  >
+                </div>
+                
+                <div class="col-md-3">
+                  <label class="form-label">Harga</label>
+                  <input
+                    v-model.number="itemInput.service_price"
+                    type="number"
+                    class="form-control"
+                    min="0"
+                    placeholder="Harga jasa"
+                  >
+                </div>
+                
+                <div class="col-md-3">
+                  <label class="form-label">Jumlah</label>
+                  <input
+                    v-model.number="itemInput.quantity"
+                    type="number"
+                    class="form-control"
+                    min="1"
+                  >
+                </div>
+                
+                <div class="col-md-2">
+                  <label class="form-label">Diskon (%)</label>
+                  <input
+                    v-model.number="itemInput.discount"
+                    type="number"
+                    class="form-control"
+                    min="0"
+                    max="100"
+                  >
+                </div>
+              </div>
+
+              <!-- Preview Item -->
+              <div v-if="showPreview" class="mt-3 p-3 bg-light rounded">
+                <h6>Preview Item:</h6>
+                <div class="d-flex justify-content-between">
+                  <span>{{ getPreviewName }}</span>
+                  <strong>Rp {{ formatPrice(getPreviewSubtotal) }}</strong>
+                </div>
+                <small class="text-muted">
+                  {{ itemInput.quantity }} x Rp {{ formatPrice(getPreviewPrice) }} 
+                  <span v-if="itemInput.discount > 0">- {{ itemInput.discount }}%</span>
+                </small>
+              </div>
+
+              <!-- Tombol Tambah -->
               <div class="mt-4">
                 <button 
                   type="button" 
                   class="btn btn-success w-100"
-                  @click="addItem"
+                  @click="addItemToCart"
                   :disabled="!canAddItem"
                 >
                   <i class="bi bi-plus-circle me-2"></i>
@@ -167,12 +179,12 @@
           <!-- Daftar Item -->
           <div class="card">
             <div class="card-header bg-secondary text-white">
-              <h5 class="card-title mb-0">Daftar Item Penjualan</h5>
+              <h5 class="card-title mb-0">Keranjang</h5>
             </div>
             <div class="card-body p-0">
-              <div v-if="items.length === 0" class="text-center py-5 text-muted">
+              <div v-if="cartItems.length === 0" class="text-center py-5 text-muted">
                 <i class="bi bi-cart-x display-4 d-block mb-2"></i>
-                Belum ada item dalam penjualan
+                Belum ada item dalam keranjang
               </div>
               
               <div v-else class="table-responsive">
@@ -188,27 +200,27 @@
                     </tr>
                   </thead>
                   <tbody>
-                    <tr v-for="(item, index) in items" :key="index">
+                    <tr v-for="(item, index) in cartItems" :key="item.id">
                       <td>
                         <div>
-                          <strong>{{ item.item_name }}</strong>
+                          <strong>{{ item.name }}</strong>
                           <small class="d-block text-muted" v-if="item.type === 'service'">
-                            {{ item.service_description || 'Jasa' }}
+                            Jasa
                           </small>
                           <small class="d-block text-muted" v-else>
-                            Stok tersisa: {{ selectedProductStock(item.product_id) }}
+                            Stok tersisa: {{ getRemainingStock(item.product_id) }}
                           </small>
                         </div>
                       </td>
-                      <td>Rp {{ item.price.toLocaleString() }}</td>
+                      <td>Rp {{ formatPrice(item.price) }}</td>
                       <td>{{ item.quantity }}</td>
                       <td>{{ item.discount }}%</td>
-                      <td class="fw-bold">Rp {{ item.subtotal.toLocaleString() }}</td>
+                      <td class="fw-bold">Rp {{ formatPrice(item.subtotal) }}</td>
                       <td>
                         <button 
                           type="button" 
                           class="btn btn-sm btn-outline-danger"
-                          @click="removeItem(index)"
+                          @click="removeCartItem(index)"
                         >
                           <i class="bi bi-trash"></i>
                         </button>
@@ -221,8 +233,9 @@
           </div>
         </div>
 
-        <!-- Ringkasan & Pembayaran -->
+        <!-- Kolom Kanan: Ringkasan -->
         <div class="col-lg-4">
+          <!-- Ringkasan Transaksi -->
           <div class="card mb-4">
             <div class="card-header bg-info text-white">
               <h5 class="card-title mb-0">Ringkasan Transaksi</h5>
@@ -232,7 +245,7 @@
                 <label class="form-label">Tanggal Penjualan</label>
                 <input
                   type="date"
-                  v-model="form.sale_date"
+                  v-model="saleDate"
                   class="form-control"
                 >
               </div>
@@ -240,15 +253,15 @@
               <div class="border-top pt-3">
                 <div class="d-flex justify-content-between mb-2">
                   <span>Subtotal:</span>
-                  <strong>Rp {{ subtotal.toLocaleString() }}</strong>
+                  <strong>Rp {{ formatPrice(summary.subtotal) }}</strong>
                 </div>
                 <div class="d-flex justify-content-between mb-2">
                   <span>Total Diskon:</span>
-                  <strong class="text-danger">- Rp {{ totalDiscount.toLocaleString() }}</strong>
+                  <strong class="text-danger">- Rp {{ formatPrice(summary.totalDiscount) }}</strong>
                 </div>
                 <div class="d-flex justify-content-between mb-3 fs-5 fw-bold">
                   <span>Total:</span>
-                  <span class="text-primary">Rp {{ totalTransaction.toLocaleString() }}</span>
+                  <span class="text-primary">Rp {{ formatPrice(summary.total) }}</span>
                 </div>
               </div>
 
@@ -256,14 +269,14 @@
                 <div class="mb-3">
                   <label class="form-label fw-bold">Dibayar</label>
                   <input
-                    v-model="paidFormatted"
+                    v-model="paidInput"
                     type="text"
                     class="form-control form-control-lg"
                     placeholder="0"
                     @input="handlePaidInput"
-                    :class="{ 'is-invalid': paid < totalTransaction }"
+                    :class="{ 'is-invalid': paidAmount < summary.total }"
                   >
-                  <div v-if="paid < totalTransaction" class="invalid-feedback">
+                  <div v-if="paidAmount < summary.total" class="invalid-feedback">
                     Jumlah pembayaran kurang
                   </div>
                 </div>
@@ -272,9 +285,9 @@
                   <label class="form-label fw-bold">Kembalian</label>
                   <div 
                     class="form-control form-control-lg fw-bold text-center"
-                    :class="change >= 0 ? 'text-success bg-light-success' : 'text-danger bg-light-danger'"
+                    :class="changeAmount >= 0 ? 'text-success bg-light-success' : 'text-danger bg-light-danger'"
                   >
-                    {{ change >= 0 ? 'Rp ' + change.toLocaleString() : 'Kurang: Rp ' + Math.abs(change).toLocaleString() }}
+                    {{ changeAmount >= 0 ? 'Rp ' + formatPrice(changeAmount) : 'Kurang: Rp ' + formatPrice(Math.abs(changeAmount)) }}
                   </div>
                 </div>
               </div>
@@ -282,11 +295,11 @@
               <button 
                 type="button" 
                 class="btn btn-success btn-lg w-100 mt-3"
-                @click="submitSale"
-                :disabled="!canSubmit"
+                @click="processSale"
+                :disabled="!canProcessSale"
               >
                 <i class="bi bi-check-circle me-2"></i>
-                {{ form.processing ? 'Menyimpan...' : 'Simpan Transaksi' }}
+                {{ isProcessing ? 'Menyimpan...' : 'Simpan Transaksi' }}
               </button>
             </div>
           </div>
@@ -298,7 +311,7 @@
               <ul class="list-unstyled small">
                 <li class="mb-1">
                   <i class="bi bi-info-circle text-primary me-1"></i>
-                  Total Item: <strong>{{ items.length }}</strong>
+                  Total Item: <strong>{{ cartItems.length }}</strong>
                 </li>
                 <li class="mb-1">
                   <i class="bi bi-box text-success me-1"></i>
@@ -319,27 +332,23 @@
 
 <script setup>
 import { useForm, Link, router } from "@inertiajs/vue3";
-import { computed, ref, watch } from "vue";
+import { ref, computed, watch } from "vue";
 import AppLayout from "@/Layouts/AppLayout.vue";
 import Swal from "sweetalert2";
 
 const props = defineProps({ 
-  products: Array 
+  products: {
+    type: Array,
+    default: () => []
+  }
 });
 
-// Form utama
-const form = useForm({
-  sale_date: new Date().toISOString().split('T')[0],
-  items: [],
-  subtotal: 0,
-  discount: 0,
-  total: 0,
-  paid: 0,
-  change: 0,
-});
+// State Management
+const saleDate = ref(new Date().toISOString().split('T')[0]);
+const isProcessing = ref(false);
 
-// Item baru yang akan ditambahkan
-const newItem = ref({
+// Input Item State
+const itemInput = ref({
   type: 'product',
   product_id: '',
   service_name: '',
@@ -348,140 +357,167 @@ const newItem = ref({
   discount: 0
 });
 
-// Daftar item yang sudah ditambahkan
-const items = ref([]);
+// Cart State
+const cartItems = ref([]);
 
-// Format input dibayar
-const paidFormatted = ref('0');
+// Payment State
+const paidInput = ref('0');
+const paidAmount = ref(0);
 
-// Computed properties
-const availableProducts = computed(() => 
-  props.products.filter(p => p.stock > 0)
-);
+// Computed Properties - Simple dan Aman
+const filteredProducts = computed(() => {
+  return props.products.filter(product => product.stock > 0);
+});
 
-const selectedProduct = computed(() => 
-  props.products.find(p => p.id === newItem.value.product_id)
-);
+const selectedProductData = computed(() => {
+  if (!itemInput.value.product_id) return null;
+  return props.products.find(p => p.id == itemInput.value.product_id);
+});
 
-const canAddItem = computed(() => {
-  if (newItem.value.type === 'product') {
-    return newItem.value.product_id && 
-           newItem.value.quantity > 0 && 
-           newItem.value.quantity <= (selectedProduct.value?.stock || 0);
+const getMaxQuantity = computed(() => {
+  if (itemInput.value.type !== 'product' || !selectedProductData.value) return 1;
+  
+  const product = selectedProductData.value;
+  const inCart = cartItems.value
+    .filter(item => item.product_id === itemInput.value.product_id)
+    .reduce((sum, item) => sum + item.quantity, 0);
+  
+  return product.stock - inCart;
+});
+
+const showPreview = computed(() => {
+  if (itemInput.value.type === 'product') {
+    return itemInput.value.product_id && itemInput.value.quantity > 0;
   } else {
-    return newItem.value.service_name && 
-           newItem.value.service_price > 0 && 
-           newItem.value.quantity > 0;
+    return itemInput.value.service_name && itemInput.value.service_price > 0 && itemInput.value.quantity > 0;
   }
 });
 
-const subtotal = computed(() => 
-  items.value.reduce((sum, item) => sum + (item.price * item.quantity), 0)
-);
+const getPreviewPrice = computed(() => {
+  if (itemInput.value.type === 'product' && selectedProductData.value) {
+    return selectedProductData.value.price;
+  } else if (itemInput.value.type === 'service') {
+    return itemInput.value.service_price;
+  }
+  return 0;
+});
 
-const totalDiscount = computed(() => 
-  items.value.reduce((sum, item) => {
-    const discountAmount = item.price * item.quantity * (item.discount / 100);
-    return sum + discountAmount;
-  }, 0)
-);
+const getPreviewName = computed(() => {
+  if (itemInput.value.type === 'product' && selectedProductData.value) {
+    return selectedProductData.value.name;
+  } else if (itemInput.value.type === 'service') {
+    return itemInput.value.service_name;
+  }
+  return '';
+});
 
-const totalTransaction = computed(() => subtotal.value - totalDiscount.value);
+const getPreviewSubtotal = computed(() => {
+  const price = getPreviewPrice.value;
+  const quantity = itemInput.value.quantity;
+  const discount = itemInput.value.discount;
+  const discountAmount = price * quantity * (discount / 100);
+  return (price * quantity) - discountAmount;
+});
 
-const paid = computed(() => form.paid);
+const canAddItem = computed(() => {
+  if (itemInput.value.type === 'product') {
+    return itemInput.value.product_id && 
+           itemInput.value.quantity > 0 && 
+           itemInput.value.quantity <= getMaxQuantity.value;
+  } else {
+    return itemInput.value.service_name && 
+           itemInput.value.service_price > 0 && 
+           itemInput.value.quantity > 0;
+  }
+});
 
-const change = computed(() => paid.value - totalTransaction.value);
+// Summary Calculations
+const summary = computed(() => {
+  const subtotal = cartItems.value.reduce((sum, item) => sum + item.subtotal, 0);
+  const totalDiscount = cartItems.value.reduce((sum, item) => {
+    return sum + (item.price * item.quantity * (item.discount / 100));
+  }, 0);
+  const total = Math.max(0, subtotal - totalDiscount);
 
-const canSubmit = computed(() => 
-  items.value.length > 0 && 
-  paid.value >= totalTransaction.value && 
-  !form.processing
-);
+  return {
+    subtotal,
+    totalDiscount,
+    total
+  };
+});
 
-const productCount = computed(() => 
-  items.value.filter(item => item.type === 'product').length
-);
+const changeAmount = computed(() => {
+  return Math.max(0, paidAmount.value - summary.value.total);
+});
 
-const serviceCount = computed(() => 
-  items.value.filter(item => item.type === 'service').length
-);
+const canProcessSale = computed(() => {
+  return cartItems.value.length > 0 && 
+         paidAmount.value >= summary.value.total && 
+         !isProcessing.value;
+});
+
+const productCount = computed(() => {
+  return cartItems.value.filter(item => item.type === 'product').length;
+});
+
+const serviceCount = computed(() => {
+  return cartItems.value.filter(item => item.type === 'service').length;
+});
 
 // Methods
-const onProductSelect = () => {
-  if (selectedProduct.value) {
-    newItem.value.quantity = 1;
-    newItem.value.discount = 0;
+const formatPrice = (price) => {
+  return new Intl.NumberFormat('id-ID').format(price);
+};
+
+const handleProductSelect = () => {
+  if (selectedProductData.value) {
+    itemInput.value.quantity = 1;
+    itemInput.value.discount = 0;
   }
 };
 
 const validateQuantity = () => {
-  if (newItem.value.type === 'product' && selectedProduct.value) {
-    const maxStock = selectedProduct.value.stock;
-    const currentInCart = items.value
-      .filter(item => item.product_id === newItem.value.product_id)
-      .reduce((sum, item) => sum + item.quantity, 0);
-    
-    const availableStock = maxStock - currentInCart;
-    
-    if (newItem.value.quantity > availableStock) {
-      newItem.value.quantity = availableStock;
-      Swal.fire({
-        icon: 'warning',
-        title: 'Stok Tidak Cukup',
-        text: `Stok tersisa: ${availableStock}`,
-        timer: 2000
-      });
+  if (itemInput.value.type === 'product' && selectedProductData.value) {
+    if (itemInput.value.quantity > getMaxQuantity.value) {
+      itemInput.value.quantity = Math.max(1, getMaxQuantity.value);
+      if (getMaxQuantity.value > 0) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Stok Tidak Cukup',
+          text: `Stok tersisa: ${getMaxQuantity.value}`,
+          timer: 2000
+        });
+      }
     }
   }
 };
 
-const addItem = () => {
+const addItemToCart = () => {
   if (!canAddItem.value) return;
 
-  let itemData = { ...newItem.value };
-  
-  // Set data berdasarkan tipe
-  if (itemData.type === 'product') {
-    const product = selectedProduct.value;
-    itemData.price = product.price;
-    itemData.item_name = product.name;
-    itemData.service_name = null;
-    itemData.service_price = null;
-  } else {
-    itemData.price = itemData.service_price;
-    itemData.item_name = itemData.service_name;
-    itemData.product_id = null;
-  }
+  const newItem = {
+    id: Date.now() + Math.random(),
+    type: itemInput.value.type,
+    product_id: itemInput.value.type === 'product' ? itemInput.value.product_id : null,
+    name: itemInput.value.type === 'product' ? selectedProductData.value.name : itemInput.value.service_name,
+    price: itemInput.value.type === 'product' ? selectedProductData.value.price : itemInput.value.service_price,
+    quantity: itemInput.value.quantity,
+    discount: itemInput.value.discount,
+    subtotal: getPreviewSubtotal.value
+  };
 
-  // Hitung subtotal
-  const discountAmount = itemData.price * itemData.quantity * (itemData.discount / 100);
-  itemData.subtotal = (itemData.price * itemData.quantity) - discountAmount;
-
-  items.value.push(itemData);
-  
-  // Reset form input
-  resetNewItem();
-  
-  // Update ringkasan
-  updateSummary();
+  cartItems.value.push(newItem);
+  resetItemInput();
+  updatePaidAmount();
 };
 
-const removeItem = (index) => {
-  items.value.splice(index, 1);
-  updateSummary();
+const removeCartItem = (index) => {
+  cartItems.value.splice(index, 1);
+  updatePaidAmount();
 };
 
-const selectedProductStock = (productId) => {
-  const product = props.products.find(p => p.id === productId);
-  const inCart = items.value
-    .filter(item => item.product_id === productId)
-    .reduce((sum, item) => sum + item.quantity, 0);
-  
-  return (product?.stock || 0) - inCart;
-};
-
-const resetNewItem = () => {
-  newItem.value = {
+const resetItemInput = () => {
+  itemInput.value = {
     type: 'product',
     product_id: '',
     service_name: '',
@@ -491,16 +527,15 @@ const resetNewItem = () => {
   };
 };
 
-const updateSummary = () => {
-  form.subtotal = subtotal.value;
-  form.discount = totalDiscount.value;
-  form.total = totalTransaction.value;
+const getRemainingStock = (productId) => {
+  const product = props.products.find(p => p.id == productId);
+  if (!product) return 0;
   
-  // Auto-set paid amount jika belum diisi atau kurang
-  if (!form.paid || form.paid < totalTransaction.value) {
-    form.paid = totalTransaction.value;
-    paidFormatted.value = totalTransaction.value.toLocaleString('id-ID');
-  }
+  const inCart = cartItems.value
+    .filter(item => item.product_id == productId)
+    .reduce((sum, item) => sum + item.quantity, 0);
+  
+  return product.stock - inCart;
 };
 
 const handlePaidInput = (event) => {
@@ -508,15 +543,22 @@ const handlePaidInput = (event) => {
   
   if (value) {
     const numericValue = parseInt(value, 10);
-    paidFormatted.value = numericValue.toLocaleString("id-ID");
-    form.paid = numericValue;
+    paidInput.value = formatPrice(numericValue);
+    paidAmount.value = numericValue;
   } else {
-    paidFormatted.value = "0";
-    form.paid = 0;
+    paidInput.value = "0";
+    paidAmount.value = 0;
   }
 };
 
-const resetForm = () => {
+const updatePaidAmount = () => {
+  if (paidAmount.value < summary.value.total) {
+    paidAmount.value = summary.value.total;
+    paidInput.value = formatPrice(summary.value.total);
+  }
+};
+
+const handleReset = () => {
   Swal.fire({
     title: 'Reset Form?',
     text: 'Semua data penjualan akan dihapus',
@@ -528,12 +570,11 @@ const resetForm = () => {
     cancelButtonText: 'Batal'
   }).then((result) => {
     if (result.isConfirmed) {
-      items.value = [];
-      resetNewItem();
-      form.reset();
-      form.sale_date = new Date().toISOString().split('T')[0];
-      form.paid = 0;
-      paidFormatted.value = '0';
+      cartItems.value = [];
+      resetItemInput();
+      saleDate.value = new Date().toISOString().split('T')[0];
+      paidAmount.value = 0;
+      paidInput.value = '0';
       
       Swal.fire({
         icon: 'success',
@@ -544,125 +585,102 @@ const resetForm = () => {
   });
 };
 
-const submitSale = () => {
-  if (!canSubmit.value) return;
+const processSale = async () => {
+  if (!canProcessSale.value) return;
 
-  // Siapkan data untuk dikirim
   const saleData = {
-    sale_date: form.sale_date,
-    items: items.value.map(item => ({
+    sale_date: saleDate.value,
+    items: cartItems.value.map(item => ({
       product_id: item.type === 'product' ? item.product_id : null,
-      service_name: item.type === 'service' ? item.service_name : null,
-      service_description: item.type === 'service' ? `Jasa: ${item.service_name}` : null,
-      service_price: item.type === 'service' ? item.service_price : null,
+      service_name: item.type === 'service' ? item.name : null,
+      service_price: item.type === 'service' ? item.price : null,
       item_type: item.type,
       quantity: item.quantity,
       price: item.price,
       discount: item.discount,
       subtotal: item.subtotal,
-      item_name: item.item_name
+      item_name: item.name
     })),
-    subtotal: form.subtotal,
-    discount: form.discount,
-    total: form.total,
-    paid: form.paid,
-    change: change.value,
+    subtotal: summary.value.subtotal,
+    discount: summary.value.totalDiscount,
+    total: summary.value.total,
+    paid: paidAmount.value,
+    change: changeAmount.value,
   };
 
-  // Tampilkan konfirmasi
-  Swal.fire({
-    title: 'Simpan Transaksi?',
-    html: `
-      <div class="text-start">
-        <p><strong>Total: Rp ${form.total.toLocaleString()}</strong></p>
-        <p>Dibayar: Rp ${form.paid.toLocaleString()}</p>
-        <p>Kembalian: Rp ${change.value.toLocaleString()}</p>
-        <p>Jumlah Item: ${items.value.length}</p>
-      </div>
-    `,
-    icon: 'question',
-    showCancelButton: true,
-    confirmButtonColor: '#198754',
-    cancelButtonColor: '#6c757d',
-    confirmButtonText: 'Ya, Simpan!',
-    cancelButtonText: 'Batal'
-  }).then((result) => {
+  try {
+    const result = await Swal.fire({
+      title: 'Simpan Transaksi?',
+      html: `
+        <div class="text-start">
+          <p><strong>Total: Rp ${formatPrice(summary.value.total)}</strong></p>
+          <p>Dibayar: Rp ${formatPrice(paidAmount.value)}</p>
+          <p>Kembalian: Rp ${formatPrice(changeAmount.value)}</p>
+          <p>Jumlah Item: ${cartItems.value.length}</p>
+        </div>
+      `,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#198754',
+      cancelButtonColor: '#6c757d',
+      confirmButtonText: 'Ya, Simpan!',
+      cancelButtonText: 'Batal'
+    });
+
     if (result.isConfirmed) {
-      form.processing = true;
+      isProcessing.value = true;
       
-      // Kirim request
-      form.transform(() => saleData)
-        .post('/sales', {
-          onSuccess: () => {
-            Swal.fire({
-              icon: 'success',
-              title: 'Berhasil!',
-              text: 'Transaksi berhasil disimpan',
-              timer: 2000
-            });
-            
-            // Redirect ke halaman sales
-            setTimeout(() => {
-              router.visit('/sales');
-            }, 2000);
-          },
-          onError: (errors) => {
-            let errorMessage = 'Terjadi kesalahan saat menyimpan transaksi.';
-            
-            if (errors.items) {
-              errorMessage = 'Ada masalah dengan item penjualan: ' + Object.values(errors.items).join(', ');
-            } else if (errors.paid) {
-              errorMessage = errors.paid;
-            }
-            
-            Swal.fire({
-              icon: 'error',
-              title: 'Gagal',
-              text: errorMessage
-            });
-          },
-          onFinish: () => {
-            form.processing = false;
+      const form = useForm(saleData);
+      
+      form.post('/sales', {
+        onSuccess: () => {
+          Swal.fire({
+            icon: 'success',
+            title: 'Berhasil!',
+            text: 'Transaksi berhasil disimpan',
+            timer: 2000
+          });
+          
+          setTimeout(() => {
+            router.visit('/sales');
+          }, 2000);
+        },
+        onError: (errors) => {
+          let errorMessage = 'Terjadi kesalahan saat menyimpan transaksi.';
+          
+          if (errors.items) {
+            errorMessage = 'Ada masalah dengan item penjualan: ' + Object.values(errors.items).join(', ');
+          } else if (errors.paid) {
+            errorMessage = errors.paid;
           }
-        });
+          
+          Swal.fire({
+            icon: 'error',
+            title: 'Gagal',
+            text: errorMessage
+          });
+        },
+        onFinish: () => {
+          isProcessing.value = false;
+        }
+      });
     }
-  });
+  } catch (error) {
+    console.error('Error processing sale:', error);
+    Swal.fire({
+      icon: 'error',
+      title: 'Error',
+      text: 'Terjadi kesalahan saat memproses transaksi'
+    });
+    isProcessing.value = false;
+  }
 };
 
-// Watch untuk update otomatis
-watch(totalTransaction, (newTotal) => {
-  if (form.paid < newTotal) {
-    form.paid = newTotal;
-    paidFormatted.value = newTotal.toLocaleString('id-ID');
+// Auto-update paid amount when total changes
+watch(() => summary.value.total, (newTotal) => {
+  if (paidAmount.value < newTotal) {
+    paidAmount.value = newTotal;
+    paidInput.value = formatPrice(newTotal);
   }
 });
 </script>
-
-<style scoped>
-.bg-light-success {
-  background-color: rgba(25, 135, 84, 0.1) !important;
-}
-
-.bg-light-danger {
-  background-color: rgba(220, 53, 69, 0.1) !important;
-}
-
-.table th {
-  border-top: none;
-  font-weight: 600;
-}
-
-.card-header {
-  border-bottom: none;
-}
-
-.btn-check:checked + .btn {
-  border-color: #0d6efd;
-  background-color: #0d6efd;
-}
-
-.form-control-lg {
-  font-size: 1.1rem;
-  font-weight: 600;
-}
-</style>

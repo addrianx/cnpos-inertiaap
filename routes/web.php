@@ -196,6 +196,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // User management khusus admin
         Route::post('/users/{user}/suspend', [UserController::class, 'suspend'])->name('users.suspend');
         Route::post('/users/{user}/activate', [UserController::class, 'activate'])->name('users.activate');
+        Route::get('/users/{user}/edit', [UserController::class, 'edit'])->name('users.edit');
+        Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');   
 
         Route::get('/debug-pc-data', function() {
             $categoryMapping = [

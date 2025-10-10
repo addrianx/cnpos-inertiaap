@@ -108,6 +108,12 @@
                         </td>
                         <td>
                             <div class="btn-group">
+                                <Link 
+                                    :href="`/users/${user.id}/edit`" 
+                                    class="btn btn-sm btn-primary"
+                                >
+                                    Edit
+                                </Link>
                                 <button v-if="user.is_active" 
                                         class="btn btn-sm btn-warning" 
                                         @click="confirmSuspend(user)"
@@ -168,7 +174,7 @@
 
 <script setup>
     import { ref, computed, watch } from 'vue'
-    import { Link } from '@inertiajs/vue3'
+    import { Link, router } from '@inertiajs/vue3' // Import router untuk reload
     import AppLayout from '@/Layouts/AppLayout.vue'
     import Swal from 'sweetalert2'
     import axios from 'axios'
@@ -187,7 +193,7 @@
     const selectedRole = ref('')
     const tableLoading = ref(false)
 
-    // Computed properties
+    // Gunakan reactive untuk userList agar lebih responsif
     const userList = ref([...props.users])
     
     const filteredUsers = computed(() => {
@@ -271,12 +277,13 @@
     }
 
     const showSuccessAlert = (message) => {
-        Swal.fire({
+        return Swal.fire({
             title: 'Berhasil!',
             text: message,
             icon: 'success',
             confirmButtonColor: '#28a745',
-            timer: 2000
+            timer: 2000,
+            showConfirmButton: false
         })
     }
 
@@ -288,6 +295,24 @@
             confirmButtonColor: '#dc3545'
         })
     }
+
+    // Fungsi untuk refresh data dari server
+    const refreshUserData = async () => {
+        try {
+            tableLoading.value = true
+            // Reload data dari server menggunakan Inertia
+            router.reload({ only: ['users'] })
+        } catch (error) {
+            console.error('Error refreshing data:', error)
+        } finally {
+            tableLoading.value = false
+        }
+    }
+
+    // Update user list ketika props berubah
+    watch(() => props.users, (newUsers) => {
+        userList.value = [...newUsers]
+    })
 
     const confirmSuspend = async (user) => {
         const result = await Swal.fire({
@@ -305,29 +330,32 @@
             try {
                 tableLoading.value = true
                 
-                // SESUAI DENGAN ROUTE LARAVEL: menggunakan POST
                 const response = await axios.post(`/users/${user.id}/suspend`)
                 
                 if (response.data.success) {
-                    // Update local state
+                    // Update local state secara langsung
                     const index = userList.value.findIndex(u => u.id === user.id)
                     if (index !== -1) {
                         userList.value[index].is_active = false
                         userList.value[index].suspended_at = new Date().toISOString()
                     }
-                    showSuccessAlert(`User ${user.name} berhasil ditangguhkan`)
+                    
+                    // Tampilkan konfirmasi berhasil
+                    await showSuccessAlert(`User ${user.name} berhasil ditangguhkan`)
                 }
             } catch (error) {
                 console.error('Error suspending user:', error)
+                let errorMessage = 'Terjadi kesalahan saat menangguhkan user'
+                
                 if (error.response?.status === 403) {
-                    showErrorAlert('Anda tidak memiliki izin untuk menangguhkan user ini')
+                    errorMessage = 'Anda tidak memiliki izin untuk menangguhkan user ini'
                 } else if (error.response?.status === 405) {
-                    showErrorAlert('Method tidak didukung. Silakan hubungi administrator.')
+                    errorMessage = 'Method tidak didukung. Silakan hubungi administrator.'
                 } else if (error.response?.data?.message) {
-                    showErrorAlert(error.response.data.message)
-                } else {
-                    showErrorAlert('Terjadi kesalahan saat menangguhkan user')
+                    errorMessage = error.response.data.message
                 }
+                
+                showErrorAlert(errorMessage)
             } finally {
                 tableLoading.value = false
             }
@@ -350,29 +378,31 @@
             try {
                 tableLoading.value = true
                 
-                // SESUAI DENGAN ROUTE LARAVEL: menggunakan POST
                 const response = await axios.post(`/users/${user.id}/activate`)
                 
                 if (response.data.success) {
-                    // Update local state
+                    // Update local state secara langsung
                     const index = userList.value.findIndex(u => u.id === user.id)
                     if (index !== -1) {
                         userList.value[index].is_active = true
                         userList.value[index].suspended_at = null
                     }
-                    showSuccessAlert(`User ${user.name} berhasil diaktifkan`)
+                    
+                    await showSuccessAlert(`User ${user.name} berhasil diaktifkan`)
                 }
             } catch (error) {
                 console.error('Error activating user:', error)
+                let errorMessage = 'Terjadi kesalahan saat mengaktifkan user'
+                
                 if (error.response?.status === 403) {
-                    showErrorAlert('Anda tidak memiliki izin untuk mengaktifkan user ini')
+                    errorMessage = 'Anda tidak memiliki izin untuk mengaktifkan user ini'
                 } else if (error.response?.status === 405) {
-                    showErrorAlert('Method tidak didukung. Silakan hubungi administrator.')
+                    errorMessage = 'Method tidak didukung. Silakan hubungi administrator.'
                 } else if (error.response?.data?.message) {
-                    showErrorAlert(error.response.data.message)
-                } else {
-                    showErrorAlert('Terjadi kesalahan saat mengaktifkan user')
+                    errorMessage = error.response.data.message
                 }
+                
+                showErrorAlert(errorMessage)
             } finally {
                 tableLoading.value = false
             }
@@ -395,49 +425,71 @@
             try {
                 tableLoading.value = true
                 
-                // Menggunakan POST dengan _method=DELETE untuk menghindari 403
+                // SOLUSI: Selalu gunakan POST dengan _method=DELETE untuk Laravel
                 const response = await axios.post(`/users/${user.id}`, {
                     _method: 'DELETE'
                 })
                 
+                // Jika berhasil, update UI
                 if (response.data.success) {
-                    // Remove from local state
+                    // Hapus dari local state
                     userList.value = userList.value.filter(u => u.id !== user.id)
-                    showSuccessAlert(`User ${user.name} berhasil dihapus`)
+                    
+                    // Tampilkan konfirmasi berhasil
+                    await showSuccessAlert(response.data.message || `User ${user.name} berhasil dihapus`)
+                    
+                    // Jika halaman menjadi kosong setelah penghapusan, kembali ke halaman sebelumnya
+                    if (paginatedUsers.value.length === 0 && currentPage.value > 1) {
+                        currentPage.value = currentPage.value - 1
+                    }
+                } else {
+                    // Jika server mengembalikan success: false
+                    showErrorAlert(response.data.message || 'Gagal menghapus user')
                 }
             } catch (error) {
                 console.error('Error deleting user:', error)
+                let errorMessage = 'Terjadi kesalahan saat menghapus user'
+                
                 if (error.response?.status === 403) {
-                    showErrorAlert('Anda tidak memiliki izin untuk menghapus user ini')
+                    errorMessage = 'Anda tidak memiliki izin untuk menghapus user ini'
                 } else if (error.response?.status === 404) {
-                    showErrorAlert('User tidak ditemukan')
+                    errorMessage = 'User tidak ditemukan'
+                } else if (error.response?.status === 400) {
+                    errorMessage = error.response.data.message || 'Tidak dapat menghapus user ini'
                 } else if (error.response?.status === 405) {
-                    // Coba alternatif method
-                    try {
-                        const altResponse = await axios.delete(`/users/${user.id}`)
-                        if (altResponse.data.success) {
-                            userList.value = userList.value.filter(u => u.id !== user.id)
-                            showSuccessAlert(`User ${user.name} berhasil dihapus`)
-                            return
-                        }
-                    } catch (altError) {
-                        showErrorAlert('Method tidak didukung. Silakan hubungi administrator.')
-                    }
+                    // Method tidak didukung - coba reload data dari server
+                    errorMessage = 'Method tidak didukung. Memuat ulang data...'
+                    await refreshUserData()
                 } else if (error.response?.data?.message) {
-                    showErrorAlert(error.response.data.message)
-                } else {
-                    showErrorAlert('Terjadi kesalahan saat menghapus user')
+                    errorMessage = error.response.data.message
                 }
+                
+                showErrorAlert(errorMessage)
             } finally {
                 tableLoading.value = false
             }
         }
     }
 
-    watch([searchQuery, perPage, currentPage, selectedStatus, selectedRole], async () => {
+    // Debounce untuk search dan filter
+    let searchTimeout = null
+    watch([searchQuery, selectedStatus, selectedRole], () => {
         tableLoading.value = true
-        await new Promise(resolve => setTimeout(resolve, 300))
-        tableLoading.value = false
+        
+        // Reset ke halaman 1 ketika filter berubah
+        currentPage.value = 1
+        
+        if (searchTimeout) clearTimeout(searchTimeout)
+        searchTimeout = setTimeout(() => {
+            tableLoading.value = false
+        }, 500)
+    })
+
+    watch([perPage, currentPage], () => {
+        tableLoading.value = true
+        setTimeout(() => {
+            tableLoading.value = false
+        }, 300)
     })
 </script>
 

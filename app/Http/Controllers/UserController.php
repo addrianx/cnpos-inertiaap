@@ -92,12 +92,10 @@ class UserController extends Controller
 
         $user->load(['roles', 'stores']);
         $roles = Role::all();
-        $stores = Store::all();
 
         return Inertia::render('Users/Edit', [
             'user' => $user,
             'roles' => $roles,
-            'stores' => $stores,
         ]);
     }
 
@@ -116,72 +114,80 @@ class UserController extends Controller
             'role_id' => 'required|exists:roles,id',
         ]);
 
-        $updateData = [
-            'name' => $request->name,
-            'email' => $request->email,
-        ];
+        try {
+            // Update user data
+            $user->update([
+                'name' => $request->name,
+                'email' => $request->email,
+            ]);
 
-        $user->update($updateData);
+            // Update role
+            $user->roles()->sync([$request->role_id]);
 
-        // Update role
-        $user->roles()->sync([$request->role_id]);
+            // Untuk Inertia, gunakan redirect dengan session flash
+            return redirect()->route('users.index')
+                ->with('success', 'User berhasil diperbarui');
 
-        return redirect()->route('users.index')
-            ->with('success', 'User berhasil diperbarui');
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->with('error', 'Terjadi kesalahan saat memperbarui user: ' . $e->getMessage());
+        }
     }
+
+    
 
     /**
      * Suspend a user.
      */
-public function suspend(User $user)
-{
-    if (!auth()->user()->hasRole('admin')) {
+    public function suspend(User $user)
+    {
+        if (!auth()->user()->hasRole('admin')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized action.'
+            ], 403);
+        }
+
+        // Prevent suspending yourself
+        if ($user->id === auth()->id()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tidak dapat menonaktifkan akun sendiri.'
+            ], 400);
+        }
+
+        $user->update([
+            'is_active' => false,
+            'suspended_at' => now(),
+        ]);
+
         return response()->json([
-            'success' => false,
-            'message' => 'Unauthorized action.'
-        ], 403);
+            'success' => true,
+            'message' => 'User berhasil ditangguhkan',
+            'user' => $user->fresh()
+        ]);
     }
 
-    // Prevent suspending yourself
-    if ($user->id === auth()->id()) {
+    public function activate(User $user)
+    {
+        if (!auth()->user()->hasRole('admin')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized action.'
+            ], 403);
+        }
+
+        $user->update([
+            'is_active' => true,
+            'suspended_at' => null,
+        ]);
+
         return response()->json([
-            'success' => false,
-            'message' => 'Tidak dapat menonaktifkan akun sendiri.'
-        ], 400);
+            'success' => true,
+            'message' => 'User berhasil diaktifkan',
+            'user' => $user->fresh()
+        ]);
     }
-
-    $user->update([
-        'is_active' => false,
-        'suspended_at' => now(),
-    ]);
-
-    return response()->json([
-        'success' => true,
-        'message' => 'User berhasil ditangguhkan',
-        'user' => $user->fresh()
-    ]);
-}
-
-public function activate(User $user)
-{
-    if (!auth()->user()->hasRole('admin')) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Unauthorized action.'
-        ], 403);
-    }
-
-    $user->update([
-        'is_active' => true,
-        'suspended_at' => null,
-    ]);
-
-    return response()->json([
-        'success' => true,
-        'message' => 'User berhasil diaktifkan',
-        'user' => $user->fresh()
-    ]);
-}
 
     /**
      * Remove the specified user from storage.
@@ -189,16 +195,26 @@ public function activate(User $user)
     public function destroy(User $user)
     {
         if (!auth()->user()->hasRole('admin')) {
-            abort(403, 'Unauthorized action.');
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized action.'
+            ], 403);
         }
 
         // Prevent deleting yourself
         if ($user->id === auth()->id()) {
-            return back()->with('error', 'Tidak dapat menghapus akun sendiri.');
+            return response()->json([
+                'success' => false,
+                'message' => 'Tidak dapat menghapus akun sendiri.'
+            ], 400);
         }
 
+        $userName = $user->name;
         $user->delete();
 
-        return back()->with('success', 'User berhasil dihapus');
+        return response()->json([
+            'success' => true,
+            'message' => 'User ' . $userName . ' berhasil dihapus'
+        ]);
     }
 }

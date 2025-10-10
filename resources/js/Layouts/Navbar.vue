@@ -344,9 +344,46 @@ const confirmLogout = () => {
     cancelButtonColor: '#6c757d',
     confirmButtonText: 'Ya, logout!',
     cancelButtonText: 'Batal',
-  }).then((result) => {
+  }).then(async (result) => {
     if (result.isConfirmed) {
-      router.post('/logout')
+      try {
+        // Tampilkan loading
+        Swal.fire({
+          title: 'Logging out...',
+          text: 'Sedang memproses logout',
+          allowOutsideClick: false,
+          didOpen: () => {
+            Swal.showLoading()
+          }
+        })
+
+        // Gunakan fetch untuk POST logout
+        const response = await fetch('/logout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          credentials: 'same-origin'
+        })
+
+        // Setelah logout berhasil, redirect ke login
+        if (response.ok) {
+          window.location.href = '/login'
+        } else {
+          throw new Error('Logout failed')
+        }
+        
+      } catch (error) {
+        console.error('Logout error:', error)
+        Swal.fire({
+          title: 'Error!',
+          text: 'Gagal melakukan logout',
+          icon: 'error',
+          confirmButtonText: 'OK'
+        })
+      }
     }
   })
 }

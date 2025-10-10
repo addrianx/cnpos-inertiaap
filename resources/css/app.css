@@ -25,3 +25,16 @@
   border-top-color: #2563eb !important;
   border-left-color: #2563eb !important;
 }
+
+button,
+a,
+div.interactive,
+header,
+nav {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+button, a {
+  -webkit-touch-callout: none;
+}
