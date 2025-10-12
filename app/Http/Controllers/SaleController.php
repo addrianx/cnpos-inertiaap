@@ -44,7 +44,6 @@ class SaleController extends Controller
 
     public function create()
     {
-        // ✅ FIX: Gunakan many-to-many
         $store = Store::whereHas('users', function($q) {
             $q->where('users.id', auth()->id());
         })->first();
@@ -69,7 +68,6 @@ class SaleController extends Controller
     }
 
     public function store(Request $request)
-
     {
         \Log::info('Sale Store Request:', $request->all());
 
@@ -93,10 +91,9 @@ class SaleController extends Controller
 
         // Validasi pembayaran
         if ($request->paid < $request->total) {
-            return response()->json([
-                'message' => 'Jumlah pembayaran kurang dari total transaksi.',
-                'errors' => ['paid' => 'Jumlah pembayaran harus lebih besar atau sama dengan total transaksi.']
-            ], 422);
+            return back()->withErrors([
+                'paid' => 'Jumlah pembayaran harus lebih besar atau sama dengan total transaksi.'
+            ]);
         }
 
         DB::beginTransaction();
@@ -161,22 +158,23 @@ class SaleController extends Controller
 
             DB::commit();
 
-            return response()->json([
-                'message' => 'Transaksi berhasil disimpan!',
+            // ✅ FIX: Return Inertia response dengan redirect
+            return redirect()->route('sales.index')->with([
+                'success' => 'Transaksi berhasil disimpan!',
                 'sale_id' => $sale->id
-            ], 201);
+            ]);
 
         } catch (\Exception $e) {
             DB::rollBack();
             
             \Log::error('Sale Store Error: ' . $e->getMessage());
 
-            return response()->json([
-                'message' => 'Terjadi kesalahan: ' . $e->getMessage(),
-            ], 500);
+            // ✅ FIX: Return Inertia response dengan error
+            return back()->withErrors([
+                'error' => 'Terjadi kesalahan: ' . $e->getMessage()
+            ]);
         }
     }
-
 
     public function returnSale(Request $request, Sale $sale)
     {
@@ -212,29 +210,32 @@ class SaleController extends Controller
 
             // Kembalikan stok untuk setiap item
             foreach ($sale->items as $item) {
-                Stock::create([
-                    'product_id' => $item->product_id,
-                    'user_id'    => auth()->id(),
-                    'type' => 'in', // Stok masuk karena retur
-                    'quantity' => $item->quantity,
-                    'reference' => 'RETURN-' . $sale->sale_code,
-                    'note' => 'Retur penjualan ' . $sale->sale_code . ' - ' . ($request->reason ?? 'Tidak ada alasan'),
-                ]);
+                if ($item->product_id) {
+                    Stock::create([
+                        'product_id' => $item->product_id,
+                        'user_id'    => auth()->id(),
+                        'type' => 'in', // Stok masuk karena retur
+                        'quantity' => $item->quantity,
+                        'reference' => 'RETURN-' . $sale->sale_code,
+                        'note' => 'Retur penjualan ' . $sale->sale_code . ' - ' . ($request->reason ?? 'Tidak ada alasan'),
+                    ]);
+                }
             }
 
             DB::commit();
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Retur penjualan berhasil. Stok telah dikembalikan.'
+            // ✅ FIX: Return Inertia response untuk retur juga
+            return redirect()->route('sales.index')->with([
+                'success' => 'Retur penjualan berhasil. Stok telah dikembalikan.'
             ]);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'message' => 'Gagal melakukan retur: ' . $e->getMessage()
-            ], 500);
+            
+            // ✅ FIX: Return Inertia response dengan error
+            return back()->withErrors([
+                'error' => 'Gagal melakukan retur: ' . $e->getMessage()
+            ]);
         }
     }
 }

@@ -1,15 +1,17 @@
 <template>
     <AppLayout>
         <!-- Header -->
-        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-3">
-            <h2>Daftar Produk</h2>
+        <div class="mb-3">
+            <!-- Judul -->
+            <h2 class="mb-2">Daftar Produk</h2>
 
-            <div class="mt-2 mt-md-0">
+            <!-- Tombol-tombol -->
+            <div class="d-flex flex-wrap gap-2 mb-2">
                 <!-- Tombol Tambah hanya untuk Admin & Manager -->
                 <Link 
                     v-if="canManageProducts" 
                     href="/products/create" 
-                    class="btn btn-primary me-2 mb-2 mb-md-0"
+                    class="btn btn-primary"
                 >
                    Tambah
                 </Link>
@@ -17,29 +19,27 @@
                 <!-- Tombol Atur Kategori hanya untuk Admin & Manager -->
                 <button 
                     v-if="canManageProducts" 
-                    class="btn btn-success me-2 mb-2 mb-md-0" 
+                    class="btn btn-success" 
                     @click="openManageCategory"
                 >
                     Atur Kategori
                 </button>
 
-                <!-- Tombol Tambah hanya untuk Admin & Manager -->
+                <!-- Tombol Stok hanya untuk Admin & Manager -->
                 <Link 
                     v-if="canManageProducts" 
                     href="/stock/adjust" 
-                    class="btn btn-primary me-2 mb-2 mb-md-0"
+                    class="btn btn-primary"
                 >
                    Stok
                 </Link>
             </div>
 
-            <div class="mt-2 mt-md-0">
-                <!-- Alert Warning dari Backend -->
-                <div v-if="$page.props.flash.warning" class="alert alert-warning alert-dismissible fade show" role="alert">
+            <!-- Alert Warning -->
+            <div v-if="$page.props.flash.warning" class="alert alert-warning alert-dismissible fade show mb-2" role="alert">
                 <i class="bi bi-exclamation-triangle me-2"></i>
                 {{ $page.props.flash.warning }}
                 <button type="button" class="btn-close" @click="$page.props.flash.warning = null"></button>
-                </div>
             </div>
         </div>
 
@@ -61,6 +61,7 @@
                 </select>
             </div>
         </div>
+
 
         <!-- Table Produk -->
         <div class="table-responsive">

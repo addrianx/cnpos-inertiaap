@@ -113,7 +113,7 @@ class ProductController extends Controller
             // Generate SKU baru untuk form berikutnya
             $newSku = $this->generateAutoSku($store);
 
-            return redirect()->route('products.create')
+            return redirect()->route('products.index')
                 ->with('success', 'Produk berhasil ditambahkan!')
                 ->with('newSku', $newSku);
 

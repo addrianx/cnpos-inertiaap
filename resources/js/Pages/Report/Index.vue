@@ -120,73 +120,75 @@
       </div>
     </div>
 
-    <!-- Informasi Pergerakan Barang -->
+    <!-- Informasi Pergerakan Barang - PERBAIKAN DI SINI -->
     <div v-if="products.length > 0" class="card shadow-sm mt-4">
       <div class="card-header bg-secondary text-white">
         <h5 class="mb-0">Informasi Pergerakan Barang</h5>
       </div>
       <div class="card-body p-0">
-        <table class="table table-bordered mb-0 align-middle text-nowrap">
-          <thead class="table-light">
-            <tr>
-              <th style="width: 30%">Kategori</th>
-              <th>Daftar Produk</th>
-            </tr>
-          </thead>
-          <tbody>
-            <!-- Fast Moving -->
-            <tr>
-              <td><strong>Barang Paling Laku</strong></td>
-              <td>
-                <ol class="mb-0 ps-3">
-                  <li v-for="item in topFastMoving" :key="item.id">
-                    {{ item.name }} ({{ item.total_sold }} terjual)
-                  </li>
-                  <li v-if="!topFastMoving.length">-</li>
-                </ol>
-              </td>
-            </tr>
+        <div class="table-responsive">
+          <table class="table table-bordered mb-0 align-middle">
+            <thead class="table-light">
+              <tr>
+                <th style="width: 30%">Kategori</th>
+                <th>Daftar Produk</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Fast Moving -->
+              <tr>
+                <td class="align-top"><strong>Barang Paling Laku</strong></td>
+                <td>
+                  <ol class="mb-0 ps-3 product-list">
+                    <li v-for="item in topFastMoving" :key="item.id" class="text-break">
+                      {{ item.name }} ({{ item.total_sold }} terjual)
+                    </li>
+                    <li v-if="!topFastMoving.length">-</li>
+                  </ol>
+                </td>
+              </tr>
 
-            <!-- Slow Moving -->
-            <tr>
-              <td><strong>Barang Jarang Terjual</strong></td>
-              <td>
-                <ol class="mb-0 ps-3">
-                  <li v-for="item in topSlowMoving" :key="item.id">
-                    {{ item.name }} ({{ item.total_sold }} terjual)
-                  </li>
-                  <li v-if="!topSlowMoving.length">-</li>
-                </ol>
-              </td>
-            </tr>
+              <!-- Slow Moving -->
+              <tr>
+                <td class="align-top"><strong>Barang Jarang Terjual</strong></td>
+                <td>
+                  <ol class="mb-0 ps-3 product-list">
+                    <li v-for="item in topSlowMoving" :key="item.id" class="text-break">
+                      {{ item.name }} ({{ item.total_sold }} terjual)
+                    </li>
+                    <li v-if="!topSlowMoving.length">-</li>
+                  </ol>
+                </td>
+              </tr>
 
-            <!-- Dead Stock -->
-            <tr>
-              <td><strong>Barang Mati (Dead Stock)</strong></td>
-              <td>
-                <ul class="mb-0 ps-3">
-                  <li v-for="item in deadStocks" :key="item.id">
-                    {{ item.name }} (stok {{ item.stock }})
-                  </li>
-                  <li v-if="!deadStocks.length">-</li>
-                </ul>
-              </td>
-            </tr>
+              <!-- Dead Stock -->
+              <tr>
+                <td class="align-top"><strong>Barang Mati (Dead Stock)</strong></td>
+                <td>
+                  <ul class="mb-0 ps-3 product-list">
+                    <li v-for="item in deadStocks" :key="item.id" class="text-break">
+                      {{ item.name }} (stok {{ item.stock }})
+                    </li>
+                    <li v-if="!deadStocks.length">-</li>
+                  </ul>
+                </td>
+              </tr>
 
-            <!-- Low Stock -->
-            <tr>
-              <td><strong>Stok Rendah (< 10)</strong></td>
-              <td>
-                <ul class="mb-0 ps-3">
-                  <li v-for="item in lowStocks" :key="item.id">
-                    {{ item.name }} (stok {{ item.stock }})
-                  </li>
-                  <li v-if="!lowStocks.length">-</li>
-                </ul>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+              <!-- Low Stock -->
+              <tr>
+                <td class="align-top"><strong>Stok Rendah (< 10)</strong></td>
+                <td>
+                  <ul class="mb-0 ps-3 product-list">
+                    <li v-for="item in lowStocks" :key="item.id" class="text-break">
+                      {{ item.name }} (stok {{ item.stock }})
+                    </li>
+                    <li v-if="!lowStocks.length">-</li>
+                  </ul>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   </AppLayout>
@@ -392,6 +394,35 @@ const lowStocks = computed(() => {
       content: "Halaman " counter(page) " dari " counter(pages);
       font-size: 12px;
     }
+  }
+}
+
+/* PERBAIKAN STYLING UNTUK TABEL INFORMASI PERGERAKAN BARANG */
+.product-list {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.product-list li {
+  word-wrap: break-word;
+  white-space: normal;
+  margin-bottom: 4px;
+}
+
+/* Responsive design untuk layar kecil */
+@media (max-width: 768px) {
+  .table-responsive {
+    border: 1px solid #dee2e6;
+  }
+  
+  .product-list {
+    max-height: 150px;
+    font-size: 0.875rem;
+  }
+  
+  .card-body.p-0 .table td,
+  .card-body.p-0 .table th {
+    padding: 0.5rem;
   }
 }
 

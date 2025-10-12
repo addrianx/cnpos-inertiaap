@@ -7,45 +7,42 @@
 
     <!-- Form Pencarian dan Filter -->
     <div class="card mb-4">
-      <div class="card-body p-3">
-        <div class="row g-2 align-items-center">
-          <!-- Form Pencarian Kode Penjualan -->
-          <div class="col-sm-6 col-md-4">
-            <input
-              type="text"
-              v-model="searchQuery"
-              class="form-control form-control-sm"
-              placeholder="Cari kode penjualan..."
-              @input="applyFilters"
-            >
-          </div>
-
-          <!-- Form Filter Tanggal -->
-          <div class="col-sm-6 col-md-8">
+        <div class="card-body p-3">
             <div class="row g-2 align-items-center">
-              <div class="col-6 col-md-3">
-                <input
-                  type="date"
-                  v-model="startDate"
-                  class="form-control form-control-sm"
-                  :max="endDate || today"
-                  @change="applyFilters"
-                >
-              </div>
-              <div class="col-6 col-md-3">
-                <input
-                  type="date"
-                  v-model="endDate"
-                  class="form-control form-control-sm"
-                  :min="startDate"
-                  :max="today"
-                  @change="applyFilters"
-                >
-              </div>
+                <!-- Form Pencarian Kode Penjualan -->
+                <div class="col-sm-6 col-md-4">
+                    <input type="text" v-model="searchQuery" class="form-control form-control-sm"
+                        placeholder="Cari kode penjualan..." @input="applyFilters">
+                </div>
+
+                <!-- Form Filter Tanggal -->
+                <div class="col-sm-6 col-md-8">
+                  <div class="row g-2 align-items-center">
+                    <div class="col-6 col-md-3">
+                      <input
+                        type="date"
+                        v-model="startDate"
+                        class="form-control form-control-sm"
+                        :class="{ 'placeholder-start': !startDate }"
+                        :max="endDate || today"
+                        @change="applyFilters"
+                      >
+                    </div>
+                    <div class="col-6 col-md-3">
+                      <input
+                        type="date"
+                        v-model="endDate"
+                        class="form-control form-control-sm"
+                        :class="{ 'placeholder-end': !endDate }"
+                        :min="startDate"
+                        :max="today"
+                        @change="applyFilters"
+                      >
+                    </div>
+                  </div>
+                </div>
             </div>
-          </div>
         </div>
-      </div>
     </div>
 
     <!-- Loading State -->
@@ -608,6 +605,41 @@ const confirmReturn = (sale) => {
   white-space: nowrap;
   /* HAPUS: overflow: hidden */
   /* HAPUS: text-overflow: ellipsis */
+}
+
+.placeholder-start:not(:focus):invalid::-webkit-datetime-edit {
+  color: transparent;
+}
+
+.placeholder-start:not(:focus):invalid::before {
+  content: 'Dari Tanggal';
+  color: #6c757d;
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  font-size: 0.875rem;
+}
+
+.placeholder-end:not(:focus):invalid::-webkit-datetime-edit {
+  color: transparent;
+}
+
+.placeholder-end:not(:focus):invalid::before {
+  content: 'Sampai Tanggal';
+  color: #6c757d;
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  font-size: 0.875rem;
+}
+
+.placeholder-start:focus:invalid::before,
+.placeholder-end:focus:invalid::before {
+  content: '';
 }
 
 /* HAPUS SEMUA width kolom fixed yang menyebabkan konten terpotong */

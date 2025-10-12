@@ -55,14 +55,27 @@ class AuthenticatedSessionController extends Controller
     /**
      * Destroy an authenticated session.
      */
-    public function destroy(Request $request): RedirectResponse
+    public function destroy(Request $request)
     {
         Auth::guard('web')->logout();
 
         $request->session()->invalidate();
-
         $request->session()->regenerateToken();
 
-        return redirect('/');
+        // ✅ Cek jika request dari Inertia
+        if ($request->inertia()) {
+            return Inertia::location(route('login'));
+        }
+
+        // ✅ Untuk request non-Inertia (API, form submit biasa)
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'Logged out successfully',
+                'redirect_url' => route('login')
+            ]);
+        }
+
+        // ✅ Default redirect untuk form submission biasa
+        return redirect()->route('login');
     }
 }

@@ -292,15 +292,17 @@
                 </div>
               </div>
 
-              <button 
-                type="button" 
-                class="btn btn-success btn-lg w-100 mt-3"
-                @click="processSale"
-                :disabled="!canProcessSale"
-              >
-                <i class="bi bi-check-circle me-2"></i>
-                {{ isProcessing ? 'Menyimpan...' : 'Simpan Transaksi' }}
-              </button>
+              <!-- Form untuk submit -->
+              <form @submit.prevent="processSale">
+                <button 
+                  type="submit" 
+                  class="btn btn-success btn-lg w-100 mt-3"
+                  :disabled="!canProcessSale"
+                >
+                  <i class="bi bi-check-circle me-2"></i>
+                  {{ isProcessing ? 'Menyimpan...' : 'Simpan Transaksi' }}
+                </button>
+              </form>
             </div>
           </div>
 
@@ -364,7 +366,7 @@ const cartItems = ref([]);
 const paidInput = ref('0');
 const paidAmount = ref(0);
 
-// Computed Properties - Simple dan Aman
+// Computed Properties
 const filteredProducts = computed(() => {
   return props.products.filter(product => product.stock > 0);
 });
@@ -588,26 +590,6 @@ const handleReset = () => {
 const processSale = async () => {
   if (!canProcessSale.value) return;
 
-  const saleData = {
-    sale_date: saleDate.value,
-    items: cartItems.value.map(item => ({
-      product_id: item.type === 'product' ? item.product_id : null,
-      service_name: item.type === 'service' ? item.name : null,
-      service_price: item.type === 'service' ? item.price : null,
-      item_type: item.type,
-      quantity: item.quantity,
-      price: item.price,
-      discount: item.discount,
-      subtotal: item.subtotal,
-      item_name: item.name
-    })),
-    subtotal: summary.value.subtotal,
-    discount: summary.value.totalDiscount,
-    total: summary.value.total,
-    paid: paidAmount.value,
-    change: changeAmount.value,
-  };
-
   try {
     const result = await Swal.fire({
       title: 'Simpan Transaksi?',
@@ -629,29 +611,47 @@ const processSale = async () => {
 
     if (result.isConfirmed) {
       isProcessing.value = true;
-      
+
+      // Prepare sale data
+      const saleData = {
+        sale_date: saleDate.value,
+        items: cartItems.value.map(item => ({
+          product_id: item.type === 'product' ? item.product_id : null,
+          service_name: item.type === 'service' ? item.name : null,
+          service_description: item.type === 'service' ? `Jasa: ${item.name}` : null,
+          item_type: item.type,
+          quantity: item.quantity,
+          price: item.price,
+          discount: item.discount,
+          subtotal: item.subtotal,
+        })),
+        subtotal: summary.value.subtotal,
+        discount: summary.value.totalDiscount,
+        total: summary.value.total,
+        paid: paidAmount.value,
+        change: changeAmount.value,
+      };
+
+      // Use Inertia form to submit
       const form = useForm(saleData);
       
       form.post('/sales', {
         onSuccess: () => {
+          // Success handled by Inertia redirect
           Swal.fire({
             icon: 'success',
             title: 'Berhasil!',
             text: 'Transaksi berhasil disimpan',
             timer: 2000
           });
-          
-          setTimeout(() => {
-            router.visit('/sales');
-          }, 2000);
         },
         onError: (errors) => {
           let errorMessage = 'Terjadi kesalahan saat menyimpan transaksi.';
           
-          if (errors.items) {
-            errorMessage = 'Ada masalah dengan item penjualan: ' + Object.values(errors.items).join(', ');
-          } else if (errors.paid) {
+          if (errors.paid) {
             errorMessage = errors.paid;
+          } else if (errors.items) {
+            errorMessage = 'Ada masalah dengan item penjualan';
           }
           
           Swal.fire({

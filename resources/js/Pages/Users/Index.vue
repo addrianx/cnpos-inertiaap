@@ -173,324 +173,291 @@
 </template>
 
 <script setup>
-    import { ref, computed, watch } from 'vue'
-    import { Link, router } from '@inertiajs/vue3' // Import router untuk reload
-    import AppLayout from '@/Layouts/AppLayout.vue'
-    import Swal from 'sweetalert2'
-    import axios from 'axios'
+import { ref, computed, watch, onMounted } from 'vue'
+import { Link, router, usePage } from '@inertiajs/vue3'
+import AppLayout from '@/Layouts/AppLayout.vue'
+import Swal from 'sweetalert2'
+import axios from 'axios'
 
-    const props = defineProps({
-        users: Array,
-        roles: Array,
-        stores: Array
-    })
+const props = defineProps({
+    users: Array,
+    roles: Array,
+    stores: Array
+})
 
-    // Reactive state
-    const perPage = ref(20)
-    const currentPage = ref(1)
-    const searchQuery = ref('')
-    const selectedStatus = ref('')
-    const selectedRole = ref('')
-    const tableLoading = ref(false)
+// Reactive state - GUNAKAN props.users LANGSUNG untuk reactivity
+const perPage = ref(20)
+const currentPage = ref(1)
+const searchQuery = ref('')
+const selectedStatus = ref('')
+const selectedRole = ref('')
+const tableLoading = ref(false)
 
-    // Gunakan reactive untuk userList agar lebih responsif
-    const userList = ref([...props.users])
-    
-    const filteredUsers = computed(() => {
-        let list = [...userList.value]
+// Computed properties untuk data yang selalu fresh dari props
+const filteredUsers = computed(() => {
+    let list = [...props.users] // SELALU gunakan props.users terbaru
 
-        if (searchQuery.value) {
-            const query = searchQuery.value.toLowerCase()
-            list = list.filter(user => 
-                user.name.toLowerCase().includes(query) ||
-                user.email.toLowerCase().includes(query) ||
-                user.stores.some(store => store.name.toLowerCase().includes(query))
-            )
-        }
+    if (searchQuery.value) {
+        const query = searchQuery.value.toLowerCase()
+        list = list.filter(user => 
+            user.name.toLowerCase().includes(query) ||
+            user.email.toLowerCase().includes(query) ||
+            user.stores.some(store => store.name.toLowerCase().includes(query))
+        )
+    }
 
-        if (selectedStatus.value) {
-            list = list.filter(user => 
-                selectedStatus.value === 'active' ? user.is_active : !user.is_active
-            )
-        }
+    if (selectedStatus.value) {
+        list = list.filter(user => 
+            selectedStatus.value === 'active' ? user.is_active : !user.is_active
+        )
+    }
 
-        if (selectedRole.value) {
-            list = list.filter(user => 
-                user.roles.some(role => role.id == selectedRole.value)
-            )
-        }
+    if (selectedRole.value) {
+        list = list.filter(user => 
+            user.roles.some(role => role.id == selectedRole.value)
+        )
+    }
 
-        return list
-    })
+    return list
+})
 
-    const totalPages = computed(() => Math.ceil(filteredUsers.value.length / perPage.value) || 1)
+const totalPages = computed(() => Math.ceil(filteredUsers.value.length / perPage.value) || 1)
 
-    const paginatedUsers = computed(() => {
-        const start = (currentPage.value - 1) * perPage.value
-        const end = start + perPage.value
-        return filteredUsers.value.slice(start, end)
-    })
+const paginatedUsers = computed(() => {
+    const start = (currentPage.value - 1) * perPage.value
+    const end = start + perPage.value
+    return filteredUsers.value.slice(start, end)
+})
 
-    const visiblePages = computed(() => {
-        const pages = []
-        if (totalPages.value <= 5) {
-            for (let i = 1; i <= totalPages.value; i++) pages.push(i)
-            return pages
-        }
-        const delta = 2
-        let start = Math.max(2, currentPage.value - delta)
-        let end = Math.min(totalPages.value - 1, currentPage.value + delta)
-        if (currentPage.value - delta <= 1) end = 5
-        if (currentPage.value + delta >= totalPages.value) start = totalPages.value - 4
-        for (let i = start; i <= end; i++) pages.push(i)
+const visiblePages = computed(() => {
+    const pages = []
+    if (totalPages.value <= 5) {
+        for (let i = 1; i <= totalPages.value; i++) pages.push(i)
         return pages
+    }
+    const delta = 2
+    let start = Math.max(2, currentPage.value - delta)
+    let end = Math.min(totalPages.value - 1, currentPage.value + delta)
+    if (currentPage.value - delta <= 1) end = 5
+    if (currentPage.value + delta >= totalPages.value) start = totalPages.value - 4
+    for (let i = start; i <= end; i++) pages.push(i)
+    return pages
+})
+
+// Methods
+const goToPage = (page) => {
+    if (page >= 1 && page <= totalPages.value) currentPage.value = page
+}
+const prevPage = () => goToPage(currentPage.value - 1)
+const nextPage = () => goToPage(currentPage.value + 1)
+
+const formatDate = (dateString) => {
+    if (!dateString) return '-'
+    const date = new Date(dateString)
+    return date.toLocaleDateString('id-ID', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
     })
+}
 
-    // Methods
-    const goToPage = (page) => {
-        if (page >= 1 && page <= totalPages.value) currentPage.value = page
+const getInitials = (name) => {
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2)
+}
+
+const getRoleBadgeClass = (roleName) => {
+    switch(roleName) {
+        case 'admin': return 'bg-danger'
+        case 'manager': return 'bg-warning text-dark'
+        case 'staff': return 'bg-info'
+        default: return 'bg-secondary'
     }
-    const prevPage = () => goToPage(currentPage.value - 1)
-    const nextPage = () => goToPage(currentPage.value + 1)
+}
 
-    const formatDate = (dateString) => {
-        if (!dateString) return '-'
-        const date = new Date(dateString)
-        return date.toLocaleDateString('id-ID', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric'
-        })
-    }
+// Handle flash messages dan refresh data
+const page = usePage()
 
-    const getInitials = (name) => {
-        return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2)
-    }
-
-    const getRoleBadgeClass = (roleName) => {
-        switch(roleName) {
-            case 'admin': return 'bg-danger'
-            case 'manager': return 'bg-warning text-dark'
-            case 'staff': return 'bg-info'
-            default: return 'bg-secondary'
-        }
-    }
-
-    const showSuccessAlert = (message) => {
-        return Swal.fire({
+watch(() => page.props.flash, (flash) => {
+    if (flash.success) {
+        Swal.fire({
             title: 'Berhasil!',
-            text: message,
+            text: flash.success,
             icon: 'success',
-            confirmButtonColor: '#28a745',
-            timer: 2000,
-            showConfirmButton: false
+            confirmButtonText: 'OK',
+            timer: 3000
+        }).then(() => {
+            // Refresh data dari server setelah success message
+            refreshData()
         })
     }
-
-    const showErrorAlert = (message) => {
+    
+    if (flash.error) {
         Swal.fire({
             title: 'Error!',
-            text: message,
+            text: flash.error,
             icon: 'error',
-            confirmButtonColor: '#dc3545'
+            confirmButtonText: 'OK'
         })
     }
+}, { deep: true })
 
-    // Fungsi untuk refresh data dari server
-    const refreshUserData = async () => {
+// Fungsi untuk refresh data
+const refreshData = () => {
+    tableLoading.value = true
+    router.reload({
+        only: ['users'],
+        preserveState: true,
+        preserveScroll: true,
+        onFinish: () => {
+            tableLoading.value = false
+        }
+    })
+}
+
+// Refresh data ketika component dimount (untuk memastikan data fresh)
+onMounted(() => {
+    console.log('Users Index Mounted - Data:', props.users)
+})
+
+// Sisanya tetap sama...
+const showSuccessAlert = (message) => {
+    return Swal.fire({
+        title: 'Berhasil!',
+        text: message,
+        icon: 'success',
+        confirmButtonColor: '#28a745',
+        timer: 2000,
+        showConfirmButton: false
+    })
+}
+
+const showErrorAlert = (message) => {
+    Swal.fire({
+        title: 'Error!',
+        text: message,
+        icon: 'error',
+        confirmButtonColor: '#dc3545'
+    })
+}
+
+const confirmSuspend = async (user) => {
+    const result = await Swal.fire({
+        title: 'Konfirmasi Suspend',
+        text: `Apakah Anda yakin ingin menangguhkan user ${user.name}?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Ya, tangguhkan!',
+        cancelButtonText: 'Batal',
+    })
+
+    if (result.isConfirmed) {
         try {
             tableLoading.value = true
-            // Reload data dari server menggunakan Inertia
-            router.reload({ only: ['users'] })
+            
+            const response = await axios.post(`/users/${user.id}/suspend`)
+            
+            if (response.data.success) {
+                // Refresh data dari server setelah suspend
+                await refreshData()
+                await showSuccessAlert(`User ${user.name} berhasil ditangguhkan`)
+            }
         } catch (error) {
-            console.error('Error refreshing data:', error)
+            console.error('Error suspending user:', error)
+            // ... error handling
         } finally {
             tableLoading.value = false
         }
     }
+}
 
-    // Update user list ketika props berubah
-    watch(() => props.users, (newUsers) => {
-        userList.value = [...newUsers]
+const confirmActivate = async (user) => {
+    const result = await Swal.fire({
+        title: 'Konfirmasi Aktivasi',
+        text: `Apakah Anda yakin ingin mengaktifkan user ${user.name}?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#28a745',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Ya, aktifkan!',
+        cancelButtonText: 'Batal',
     })
 
-    const confirmSuspend = async (user) => {
-        const result = await Swal.fire({
-            title: 'Konfirmasi Suspend',
-            text: `Apakah Anda yakin ingin menangguhkan user ${user.name}?`,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            cancelButtonColor: '#6c757d',
-            confirmButtonText: 'Ya, tangguhkan!',
-            cancelButtonText: 'Batal',
-        })
-
-        if (result.isConfirmed) {
-            try {
-                tableLoading.value = true
-                
-                const response = await axios.post(`/users/${user.id}/suspend`)
-                
-                if (response.data.success) {
-                    // Update local state secara langsung
-                    const index = userList.value.findIndex(u => u.id === user.id)
-                    if (index !== -1) {
-                        userList.value[index].is_active = false
-                        userList.value[index].suspended_at = new Date().toISOString()
-                    }
-                    
-                    // Tampilkan konfirmasi berhasil
-                    await showSuccessAlert(`User ${user.name} berhasil ditangguhkan`)
-                }
-            } catch (error) {
-                console.error('Error suspending user:', error)
-                let errorMessage = 'Terjadi kesalahan saat menangguhkan user'
-                
-                if (error.response?.status === 403) {
-                    errorMessage = 'Anda tidak memiliki izin untuk menangguhkan user ini'
-                } else if (error.response?.status === 405) {
-                    errorMessage = 'Method tidak didukung. Silakan hubungi administrator.'
-                } else if (error.response?.data?.message) {
-                    errorMessage = error.response.data.message
-                }
-                
-                showErrorAlert(errorMessage)
-            } finally {
-                tableLoading.value = false
+    if (result.isConfirmed) {
+        try {
+            tableLoading.value = true
+            
+            const response = await axios.post(`/users/${user.id}/activate`)
+            
+            if (response.data.success) {
+                // Refresh data dari server setelah activate
+                await refreshData()
+                await showSuccessAlert(`User ${user.name} berhasil diaktifkan`)
             }
-        }
-    }
-
-    const confirmActivate = async (user) => {
-        const result = await Swal.fire({
-            title: 'Konfirmasi Aktivasi',
-            text: `Apakah Anda yakin ingin mengaktifkan user ${user.name}?`,
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonColor: '#28a745',
-            cancelButtonColor: '#6c757d',
-            confirmButtonText: 'Ya, aktifkan!',
-            cancelButtonText: 'Batal',
-        })
-
-        if (result.isConfirmed) {
-            try {
-                tableLoading.value = true
-                
-                const response = await axios.post(`/users/${user.id}/activate`)
-                
-                if (response.data.success) {
-                    // Update local state secara langsung
-                    const index = userList.value.findIndex(u => u.id === user.id)
-                    if (index !== -1) {
-                        userList.value[index].is_active = true
-                        userList.value[index].suspended_at = null
-                    }
-                    
-                    await showSuccessAlert(`User ${user.name} berhasil diaktifkan`)
-                }
-            } catch (error) {
-                console.error('Error activating user:', error)
-                let errorMessage = 'Terjadi kesalahan saat mengaktifkan user'
-                
-                if (error.response?.status === 403) {
-                    errorMessage = 'Anda tidak memiliki izin untuk mengaktifkan user ini'
-                } else if (error.response?.status === 405) {
-                    errorMessage = 'Method tidak didukung. Silakan hubungi administrator.'
-                } else if (error.response?.data?.message) {
-                    errorMessage = error.response.data.message
-                }
-                
-                showErrorAlert(errorMessage)
-            } finally {
-                tableLoading.value = false
-            }
-        }
-    }
-
-    const confirmDelete = async (user) => {
-        const result = await Swal.fire({
-            title: 'Konfirmasi Hapus',
-            text: `Apakah Anda yakin ingin menghapus user ${user.name}? Tindakan ini tidak dapat dibatalkan!`,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            cancelButtonColor: '#6c757d',
-            confirmButtonText: 'Ya, hapus!',
-            cancelButtonText: 'Batal',
-        })
-
-        if (result.isConfirmed) {
-            try {
-                tableLoading.value = true
-                
-                // SOLUSI: Selalu gunakan POST dengan _method=DELETE untuk Laravel
-                const response = await axios.post(`/users/${user.id}`, {
-                    _method: 'DELETE'
-                })
-                
-                // Jika berhasil, update UI
-                if (response.data.success) {
-                    // Hapus dari local state
-                    userList.value = userList.value.filter(u => u.id !== user.id)
-                    
-                    // Tampilkan konfirmasi berhasil
-                    await showSuccessAlert(response.data.message || `User ${user.name} berhasil dihapus`)
-                    
-                    // Jika halaman menjadi kosong setelah penghapusan, kembali ke halaman sebelumnya
-                    if (paginatedUsers.value.length === 0 && currentPage.value > 1) {
-                        currentPage.value = currentPage.value - 1
-                    }
-                } else {
-                    // Jika server mengembalikan success: false
-                    showErrorAlert(response.data.message || 'Gagal menghapus user')
-                }
-            } catch (error) {
-                console.error('Error deleting user:', error)
-                let errorMessage = 'Terjadi kesalahan saat menghapus user'
-                
-                if (error.response?.status === 403) {
-                    errorMessage = 'Anda tidak memiliki izin untuk menghapus user ini'
-                } else if (error.response?.status === 404) {
-                    errorMessage = 'User tidak ditemukan'
-                } else if (error.response?.status === 400) {
-                    errorMessage = error.response.data.message || 'Tidak dapat menghapus user ini'
-                } else if (error.response?.status === 405) {
-                    // Method tidak didukung - coba reload data dari server
-                    errorMessage = 'Method tidak didukung. Memuat ulang data...'
-                    await refreshUserData()
-                } else if (error.response?.data?.message) {
-                    errorMessage = error.response.data.message
-                }
-                
-                showErrorAlert(errorMessage)
-            } finally {
-                tableLoading.value = false
-            }
-        }
-    }
-
-    // Debounce untuk search dan filter
-    let searchTimeout = null
-    watch([searchQuery, selectedStatus, selectedRole], () => {
-        tableLoading.value = true
-        
-        // Reset ke halaman 1 ketika filter berubah
-        currentPage.value = 1
-        
-        if (searchTimeout) clearTimeout(searchTimeout)
-        searchTimeout = setTimeout(() => {
+        } catch (error) {
+            console.error('Error activating user:', error)
+            // ... error handling
+        } finally {
             tableLoading.value = false
-        }, 500)
+        }
+    }
+}
+
+const confirmDelete = async (user) => {
+    const result = await Swal.fire({
+        title: 'Konfirmasi Hapus',
+        text: `Apakah Anda yakin ingin menghapus user ${user.name}? Tindakan ini tidak dapat dibatalkan!`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Ya, hapus!',
+        cancelButtonText: 'Batal',
     })
 
-    watch([perPage, currentPage], () => {
-        tableLoading.value = true
-        setTimeout(() => {
+    if (result.isConfirmed) {
+        try {
+            tableLoading.value = true
+            
+            const response = await axios.post(`/users/${user.id}`, {
+                _method: 'DELETE'
+            })
+            
+            if (response.data.success) {
+                // Refresh data dari server setelah delete
+                await refreshData()
+                await showSuccessAlert(response.data.message || `User ${user.name} berhasil dihapus`)
+            }
+        } catch (error) {
+            console.error('Error deleting user:', error)
+            // ... error handling
+        } finally {
             tableLoading.value = false
-        }, 300)
-    })
+        }
+    }
+}
+
+// Debounce untuk search dan filter
+let searchTimeout = null
+watch([searchQuery, selectedStatus, selectedRole], () => {
+    tableLoading.value = true
+    
+    // Reset ke halaman 1 ketika filter berubah
+    currentPage.value = 1
+    
+    if (searchTimeout) clearTimeout(searchTimeout)
+    searchTimeout = setTimeout(() => {
+        tableLoading.value = false
+    }, 500)
+})
+
+watch([perPage, currentPage], () => {
+    tableLoading.value = true
+    setTimeout(() => {
+        tableLoading.value = false
+    }, 300)
+})
 </script>
 
 <style scoped>

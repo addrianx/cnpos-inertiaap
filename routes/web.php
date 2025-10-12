@@ -3,6 +3,8 @@
 use App\Http\Controllers\ProfileController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Response;
+use Illuminate\Support\Facades\File;
 
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
@@ -25,10 +27,13 @@ Route::get('/manifest.json', function () {
     $manifest = [
         "name" => "POS Toko",
         "short_name" => "POS", 
+        "description" => "Point of Sale Application",
         "start_url" => "/",
         "display" => "standalone",
         "background_color" => "#ffffff",
         "theme_color" => "#0d6efd",
+        "orientation" => "portrait-primary",
+        "scope" => "/",
         "icons" => [
             [
                 "src" => "/icons/icon-192x192.png",
@@ -42,63 +47,87 @@ Route::get('/manifest.json', function () {
                 "type" => "image/png", 
                 "purpose" => "any maskable"
             ]
-        ]
+        ],
+        "categories" => ["business", "productivity"]
     ];
 
-    return Response::json($manifest)
+    return response()->json($manifest)
         ->header('Content-Type', 'application/json')
         ->header('Access-Control-Allow-Origin', '*')
-        ->header('Cache-Control', 'public, max-age=86400');
+        ->header('Cache-Control', 'no-cache, no-store, must-revalidate');
 });
 
-// Service Worker via Laravel Route - SESUAI NAMA FILE  
+// ✅ PERBAIKAN: Gunakan nama file yang sesuai - serviceworker.js
 Route::get('/serviceworker.js', function () {
     $swPath = public_path('serviceworker.js');
     
     if (!File::exists($swPath)) {
-        // Create basic service worker jika tidak ada
+        // Create basic service worker jika file tidak ada
         $swContent = <<<'EOT'
-        const CACHE_NAME = 'pos-cache-v1';
-        const urlsToCache = [
-            '/',
-            '/icons/icon-192x192.png', 
-            '/icons/icon-512x512.png',
-            '/manifest.json'
-        ];
+    // Simple Service Worker for POS App
+    const CACHE_NAME = 'pos-cache-v1';
+    const urlsToCache = [
+        '/',
+        '/css/app.css',
+        '/js/app.js',
+        '/icons/icon-192x192.png',
+        '/icons/icon-512x512.png',
+        '/manifest.json'
+    ];
 
-        self.addEventListener('install', (event) => {
-            console.log('🚀 Service Worker Installing...');
-            event.waitUntil(
-                caches.open(CACHE_NAME)
-                    .then((cache) => {
-                        console.log('📦 Opened cache');
-                        return cache.addAll(urlsToCache);
+    self.addEventListener('install', (event) => {
+        console.log('🚀 Service Worker Installing...');
+        event.waitUntil(
+            caches.open(CACHE_NAME)
+                .then((cache) => {
+                    console.log('📦 Cache opened');
+                    return cache.addAll(urlsToCache);
+                })
+        );
+    });
+
+    self.addEventListener('fetch', (event) => {
+        // Skip API calls and non-GET requests
+        if (event.request.url.includes('/api/') || event.request.method !== 'GET') {
+            return;
+        }
+        
+        event.respondWith(
+            caches.match(event.request)
+                .then((response) => {
+                    // Return cached version or fetch from network
+                    return response || fetch(event.request);
+                })
+        );
+    });
+
+    self.addEventListener('activate', (event) => {
+        console.log('🔥 Service Worker Activated');
+        
+        // Clean up old caches
+        event.waitUntil(
+            caches.keys().then((cacheNames) => {
+                return Promise.all(
+                    cacheNames.map((cacheName) => {
+                        if (cacheName !== CACHE_NAME) {
+                            console.log('Deleting old cache:', cacheName);
+                            return caches.delete(cacheName);
+                        }
                     })
-            );
-        });
-
-        self.addEventListener('fetch', (event) => {
-            event.respondWith(
-                caches.match(event.request)
-                    .then((response) => {
-                        return response || fetch(event.request);
-                    })
-            );
-        });
-
-        self.addEventListener('activate', (event) => {
-            console.log('🔥 Service Worker Activated');
-        });
-        EOT;
+                );
+            })
+        );
+    });
+    EOT;
     } else {
+        // Gunakan file yang sudah ada
         $swContent = File::get($swPath);
     }
 
-    return Response::make($swContent, 200, [
-        'Content-Type' => 'application/javascript',
-        'Service-Worker-Allowed' => '/',
-        'Cache-Control' => 'public, max-age=3600'
-    ]);
+    return response($swContent, 200)
+        ->header('Content-Type', 'application/javascript')
+        ->header('Service-Worker-Allowed', '/')
+        ->header('Cache-Control', 'no-cache, no-store, must-revalidate');
 });
 
 // Icons route
@@ -106,15 +135,41 @@ Route::get('/icons/{file}', function ($file) {
     $path = public_path("icons/{$file}");
     
     if (!File::exists($path)) {
-        abort(404);
+        return response()->json(['error' => 'Icon not found'], 404);
     }
 
-    return Response::file($path, [
+    return response()->file($path, [
         'Content-Type' => 'image/png',
-        'Cache-Control' => 'public, max-age=2592000',
-        'Access-Control-Allow-Origin' => '*'
+        'Cache-Control' => 'public, max-age=2592000'
     ]);
 });
+
+Route::get('/css/{file}', function ($file) {
+    $path = public_path("css/{$file}");
+    
+    if (!File::exists($path)) {
+        return response()->json(['error' => 'CSS file not found'], 404);
+    }
+
+    return response()->file($path, [
+        'Content-Type' => 'text/css',
+        'Cache-Control' => 'public, max-age=2592000'
+    ]);
+});
+
+Route::get('/js/{file}', function ($file) {
+    $path = public_path("js/{$file}");
+    
+    if (!File::exists($path)) {
+        return response()->json(['error' => 'JS file not found'], 404);
+    }
+
+    return response()->file($path, [
+        'Content-Type' => 'application/javascript',
+        'Cache-Control' => 'public, max-age=2592000'
+    ]);
+});
+
 
 Route::get('/', [AuthenticatedSessionController::class, 'create'])->name('login');
 Route::post('/set-password', [SetPasswordController::class, 'store'])->name('set-password.store');

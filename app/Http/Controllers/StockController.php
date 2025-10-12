@@ -68,7 +68,7 @@ class StockController extends Controller
             'note'       => $request->note,
         ]);
 
-        return redirect()->route('stock.index')
+        return redirect()->route('products.index')
             ->with('success', 'Stok berhasil ditambahkan');
     }
 }

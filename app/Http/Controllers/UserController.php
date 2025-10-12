@@ -8,19 +8,28 @@ use App\Models\Store;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
+
 
 class UserController extends Controller
 {
     /**
      * Display a listing of the users.
      */
-    public function index()
+    public function index(Request $request)
     {
         // Only admin can access
         if (!auth()->user()->hasRole('admin')) {
             abort(403, 'Unauthorized action.');
         }
 
+        // Log untuk debugging
+        \Log::info('Users index accessed', [
+            'refresh_param' => $request->input('_refresh'),
+            'timestamp' => $request->input('_t')
+        ]);
+
+        // Data selalu fresh dari database
         $users = User::with(['roles', 'stores'])
             ->latest()
             ->get();
@@ -32,6 +41,9 @@ class UserController extends Controller
             'users' => $users,
             'roles' => $roles,
             'stores' => $stores,
+            // ✅ Cache busting parameters
+            'timestamp' => now()->timestamp,
+            'refresh_id' => $request->input('_refresh', uniqid()),
         ]);
     }
 
@@ -90,14 +102,20 @@ class UserController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
-        $user->load(['roles', 'stores']);
+        // GUNAKAN fresh() ATAU find() UNTUK MEMASTIKAN DATA TERBARU
+        $user = User::with(['roles', 'stores'])
+            ->findOrFail($user->id); // Gunakan findOrFail untuk memastikan data fresh
+
         $roles = Role::all();
 
         return Inertia::render('Users/Edit', [
             'user' => $user,
             'roles' => $roles,
+            // Tambahkan timestamp untuk force re-render
+            'timestamp' => now()->timestamp,
         ]);
     }
+
 
     /**
      * Update the specified user in storage.
@@ -115,22 +133,32 @@ class UserController extends Controller
         ]);
 
         try {
-            // Update user data
-            $user->update([
-                'name' => $request->name,
-                'email' => $request->email,
-            ]);
+            DB::transaction(function () use ($request, $user) {
+                $user->update([
+                    'name' => $request->name,
+                    'email' => $request->email,
+                ]);
 
-            // Update role
-            $user->roles()->sync([$request->role_id]);
+                $user->roles()->sync([$request->role_id]);
+            });
 
-            // Untuk Inertia, gunakan redirect dengan session flash
+            // ✅ Tetap redirect ke INDEX untuk konsistensi
             return redirect()->route('users.index')
-                ->with('success', 'User berhasil diperbarui');
+                ->with('success', 'User ' . $user->name . ' berhasil diperbarui');
 
         } catch (\Exception $e) {
+            // Untuk request Axios, return JSON response
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Terjadi kesalahan: ' . $e->getMessage(),
+                    'errors' => []
+                ], 422);
+            }
+
             return redirect()->back()
-                ->with('error', 'Terjadi kesalahan saat memperbarui user: ' . $e->getMessage());
+                ->with('error', 'Terjadi kesalahan: ' . $e->getMessage())
+                ->withErrors([]);
         }
     }
 

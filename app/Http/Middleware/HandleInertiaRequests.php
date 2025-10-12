@@ -47,6 +47,7 @@ class HandleInertiaRequests extends Middleware
                 'success' => fn () => $request->session()->get('success'),
                 'error'   => fn () => $request->session()->get('error'),
             ],
+            'csrf_token' => csrf_token(),
             // ✅ ADD THIS: Title management
             'title' => fn () => $this->getPageTitle($request),
             'appName' => config('app.name', 'CNPOS'),
